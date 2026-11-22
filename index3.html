@@ -1,0 +1,2620 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analizador Cinemático Inteligente Pro - HOLOBODY</title>
+    <script src="https://docs.opencv.org/4.x/opencv.js" type="text/javascript"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background-color: #0f172a;
+            color: #f8fafc;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .container {
+            background: #1e293b;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3);
+            max-width: 1200px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        h1 { color: #38bdf8; text-align: center; margin-top: 0; margin-bottom: 5px; }
+        .subtitle { text-align: center; color: #94a3b8; font-size: 14px; margin-bottom: 20px; }
+
+        /* NAVEGACIÓN */
+        .nav-tabs {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 25px;
+            border-bottom: 2px solid #334155;
+            padding-bottom: 12px;
+        }
+        .tab-btn {
+            background-color: #334155;
+            color: #cbd5e1;
+            padding: 10px 20px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.2s ease;
+        }
+        .tab-btn.active {
+            background-color: #38bdf8;
+            color: #0f172a;
+        }
+        .tab-btn:hover:not(.active) {
+            background-color: #475569;
+            color: #fff;
+        }
+
+        /* MANUAL PDF */
+        .pdf-toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            background: #273549;
+            padding: 14px 20px;
+            border-radius: 8px 8px 0 0;
+            border-left: 5px solid #38bdf8;
+        }
+        .pdf-viewer-container {
+            width: 100%;
+            height: 580px;
+            background: #0f172a;
+            border-radius: 0 0 8px 8px;
+            overflow: hidden;
+            border: 1px solid #334155;
+        }
+        iframe, object {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+
+        /* SECCIONES */
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        .grid-layout {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        @media (max-width: 768px) { .grid-layout { grid-template-columns: 1fr; } }
+
+        .control-panel {
+            background: #334155;
+            padding: 20px;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .step-title {
+            font-size: 15px;
+            font-weight: bold;
+            color: #38bdf8;
+            border-bottom: 1px solid #475569;
+            padding-bottom: 4px;
+            margin-bottom: 4px;
+        }
+        label { font-weight: 500; color: #cbd5e1; font-size: 13px; }
+        input, button, select {
+            padding: 10px;
+            border-radius: 6px;
+            border: none;
+            font-size: 14px;
+        }
+        input[type="file"] { background: #475569; color: #fff; cursor: pointer; }
+        input[type="number"], input[type="text"], select { background: #f8fafc; color: #0f172a; }
+        button { font-weight: bold; cursor: pointer; transition: all 0.2s; }
+
+        .btn-process {
+            background-color: #10b981;
+            color: white;
+            width: 100%;
+            font-size: 15px;
+            padding: 12px;
+        }
+        .btn-process:hover { background-color: #059669; }
+        .btn-secondary {
+            background-color: #475569;
+            color: #f8fafc;
+            padding: 10px 14px;
+        }
+        .btn-secondary:hover { background-color: #64748b; }
+        .btn-download {
+            background-color: #38bdf8;
+            color: #0f172a;
+            text-decoration: none;
+            padding: 10px 18px;
+            border-radius: 6px;
+            font-weight: bold;
+            display: inline-block;
+        }
+        .btn-download:hover { background-color: #0ea5e9; }
+
+        .viewer-panel {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: #0f172a;
+            border-radius: 8px;
+            padding: 15px;
+        }
+        canvas, video {
+            max-width: 100%;
+            border: 2px solid #38bdf8;
+            border-radius: 6px;
+            background: #000;
+        }
+        canvas { cursor: crosshair; }
+        #simCanvas { cursor: default; background: #091120; }
+
+        .sim-actions-row {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .status {
+            background: #0284c7;
+            padding: 12px;
+            border-radius: 6px;
+            text-align: center;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+        .physics-card {
+            display: none;
+            background: linear-gradient(135deg, #1e3a8a, #1e40af);
+            border-left: 6px solid #38bdf8;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+        .physics-card h3 { margin-top: 0; color: #38bdf8; }
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(175px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        .metric-box {
+            background: rgba(255,255,255,0.12);
+            padding: 12px;
+            border-radius: 6px;
+            text-align: center;
+        }
+        .metric-box span {
+            display: block;
+            font-size: 20px;
+            font-weight: bold;
+            color: #facc15;
+            margin-top: 4px;
+        }
+
+        .comparison-banner {
+            margin-top: 16px;
+            background: rgba(15, 23, 42, 0.55);
+            border: 1px solid rgba(56, 189, 248, 0.45);
+            border-radius: 8px;
+            padding: 14px 16px;
+            font-size: 14px;
+            line-height: 1.5;
+            color: #e2e8f0;
+        }
+        .comparison-banner strong { color: #38bdf8; }
+
+        /* --- TARJETA DE REPORTE LISTA PARA CAPTURA O COPIA --- */
+        .report-card {
+            display: none;
+            margin-top: 22px;
+            background: linear-gradient(145deg, #0f172a, #162238);
+            border: 2px solid #38bdf8;
+            border-radius: 12px;
+            padding: 22px;
+            box-shadow: 0 12px 28px rgba(0, 0, 0, 0.4);
+        }
+        .report-header {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            border-bottom: 1px solid #334155;
+            padding-bottom: 12px;
+            margin-bottom: 16px;
+        }
+        .report-badge {
+            background: rgba(56, 189, 248, 0.16);
+            color: #38bdf8;
+            border: 1px solid #38bdf8;
+            padding: 4px 10px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: bold;
+            letter-spacing: 0.4px;
+        }
+        .report-title-group h3 {
+            margin: 6px 0 2px 0;
+            color: #f8fafc;
+            font-size: 18px;
+        }
+        .report-meta {
+            color: #94a3b8;
+            font-size: 12.5px;
+        }
+        .btn-copy-report {
+            background: #38bdf8;
+            color: #0f172a;
+            padding: 10px 16px;
+            border-radius: 8px;
+            font-size: 13.5px;
+            font-weight: bold;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .btn-copy-report:hover {
+            background: #0ea5e9;
+            color: #fff;
+        }
+        .report-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(175px, 1fr));
+            gap: 12px;
+        }
+        .report-item {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            padding: 11px 13px;
+        }
+        .report-item .r-label {
+            font-size: 11.5px;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+        }
+        .report-item .r-val {
+            font-size: 16px;
+            font-weight: bold;
+            color: #f8fafc;
+            margin-top: 4px;
+            word-break: break-word;
+        }
+        .report-conclusion {
+            margin-top: 14px;
+            background: rgba(16, 185, 129, 0.12);
+            border-left: 4px solid #10b981;
+            padding: 11px 14px;
+            border-radius: 6px;
+            font-size: 13.5px;
+            color: #d1fae5;
+            line-height: 1.5;
+        }
+
+        .results-section {
+            display: none;
+            margin-top: 30px;
+            width: 100%;
+        }
+        .charts-container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            margin-bottom: 25px;
+        }
+        .chart-box {
+            background: #1e293b;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #334155;
+        }
+        .table-container {
+            background: #1e293b;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #334155;
+            max-height: 350px;
+            overflow-y: auto;
+        }
+        table { width: 100%; border-collapse: collapse; text-align: center; font-size: 14px; }
+        th { background-color: #38bdf8; color: #0f172a; padding: 10px; position: sticky; top: 0; }
+        td { padding: 8px; border-bottom: 1px solid #334155; }
+        tr:nth-child(even) { background-color: #1e293b; }
+        tr:nth-child(odd) { background-color: #273549; }
+
+        /* --- ASISTENTE LATERAL FLOTANTE + IA NIVEL 1 --- */
+        .assistant-fab {
+            position: fixed;
+            right: 20px;
+            bottom: 24px;
+            z-index: 1000;
+            background: #38bdf8;
+            color: #0f172a;
+            border: none;
+            border-radius: 999px;
+            padding: 14px 20px;
+            font-size: 14px;
+            font-weight: bold;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.45);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .assistant-fab:hover {
+            background: #0ea5e9;
+            color: #fff;
+            transform: translateY(-2px);
+        }
+
+        .assistant-drawer {
+            position: fixed;
+            top: 0;
+            right: -410px;
+            width: 380px;
+            max-width: calc(100vw - 20px);
+            height: 100vh;
+            background: #1e293b;
+            border-left: 2px solid #38bdf8;
+            box-shadow: -10px 0 30px rgba(0, 0, 0, 0.55);
+            z-index: 1001;
+            display: flex;
+            flex-direction: column;
+            transition: right 0.25s ease;
+        }
+        .assistant-drawer.open {
+            right: 0;
+        }
+        .assistant-header {
+            background: #0f172a;
+            padding: 16px 18px;
+            border-bottom: 1px solid #334155;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .assistant-header h3 {
+            margin: 0;
+            color: #38bdf8;
+            font-size: 16px;
+        }
+        .assistant-close {
+            background: #334155;
+            color: #f8fafc;
+            padding: 6px 10px;
+            border-radius: 6px;
+            font-size: 13px;
+        }
+        .assistant-close:hover {
+            background: #ef4444;
+        }
+
+        .assistant-search-bar {
+            padding: 10px 14px;
+            background: #162032;
+            border-bottom: 1px solid #334155;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .assistant-search-input {
+            width: 100%;
+            box-sizing: border-box;
+            background: #0f172a;
+            color: #f8fafc;
+            border: 1px solid #475569;
+            padding: 9px 12px;
+            border-radius: 8px;
+            font-size: 13px;
+        }
+        .assistant-search-input:focus {
+            outline: none;
+            border-color: #38bdf8;
+        }
+        .btn-diag-ai {
+            background: linear-gradient(90deg, #0ea5e9, #10b981);
+            color: #fff;
+            padding: 8px 12px;
+            border-radius: 7px;
+            font-size: 12.5px;
+            width: 100%;
+        }
+        .btn-diag-ai:hover {
+            filter: brightness(1.08);
+        }
+
+        .assistant-topics {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            padding: 10px 14px;
+            background: #273549;
+            border-bottom: 1px solid #334155;
+        }
+        .topic-pill {
+            background: #334155;
+            color: #cbd5e1;
+            padding: 6px 10px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .topic-pill.active {
+            background: #38bdf8;
+            color: #0f172a;
+        }
+
+        .assistant-body {
+            padding: 16px;
+            overflow-y: auto;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .faq-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .faq-btn {
+            background: #334155;
+            color: #f8fafc;
+            text-align: left;
+            padding: 11px 13px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 500;
+            border-left: 3px solid #38bdf8;
+        }
+        .faq-btn:hover {
+            background: #475569;
+        }
+
+        .answer-box {
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-left: 4px solid #10b981;
+            border-radius: 8px;
+            padding: 14px;
+            font-size: 13.5px;
+            line-height: 1.55;
+            color: #e2e8f0;
+        }
+        .answer-box h4 {
+            margin: 0 0 8px 0;
+            color: #38bdf8;
+            font-size: 14px;
+        }
+        .tip-box {
+            margin-top: 10px;
+            background: rgba(56, 189, 248, 0.12);
+            border-radius: 6px;
+            padding: 9px 11px;
+            font-size: 12.5px;
+            color: #bae6fd;
+        }
+        .btn-back-faq {
+            background: #334155;
+            color: #f8fafc;
+            padding: 9px 12px;
+            border-radius: 6px;
+            font-size: 12.5px;
+            align-self: flex-start;
+        }
+        .btn-back-faq:hover {
+            background: #475569;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Analizador Cinemático Inteligente Pro</h1>
+    <div class="subtitle">Mapeo de Trayectorias, Simulación Interactiva y Calibración — HOLOBODY</div>
+
+    <!-- BARRA DE NAVEGACIÓN -->
+    <div class="nav-tabs">
+        <button class="tab-btn active" onclick="cambiarTab('manualTab', this)">📖 Manual de Usuario (PDF)</button>
+        <button class="tab-btn" onclick="cambiarTab('mruTab', this)">🏎️ Experimento: MRU / MRUA</button>
+        <button class="tab-btn" onclick="cambiarTab('caidaTab', this)">🍎 Experimento: Caída Libre</button>
+        <button class="tab-btn" onclick="cambiarTab('simTab', this)">🎮 Simulación Interactiva</button>
+    </div>
+
+    <!-- PESTAÑA 1: MANUAL PDF -->
+    <div id="manualTab" class="tab-content active">
+        <div class="pdf-toolbar">
+            <span style="font-weight: bold; color: #38bdf8;">Guía Oficial de Operación y Fundamentos Físicos</span>
+            <a href="manual_holobody.pdf" download="Manual_HOLOBODY.pdf" class="btn-download">📥 Descargar PDF Completo</a>
+        </div>
+        <div class="pdf-viewer-container">
+            <object data="manual_holobody.pdf" type="application/pdf">
+                <iframe src="manual_holobody.pdf">
+                    <p>Tu navegador no soporta el visualizador embebido de PDF.
+                       <a href="manual_holobody.pdf">Haz clic aquí para descargar el manual.</a>
+                    </p>
+                </iframe>
+            </object>
+        </div>
+    </div>
+
+    <!-- PESTAÑA 2: MRU Y MRUA -->
+    <div id="mruTab" class="tab-content">
+        <div class="status" id="statusText">Cargando librerías de Visión Artificial (OpenCV)...</div>
+
+        <div class="grid-layout">
+            <div class="control-panel">
+                <div class="step-title">1. ARCHIVO DE VIDEO</div>
+                <label for="videoInput">Seleccionar Video del Experimento (.mp4):</label>
+                <input type="file" id="videoInput" accept="video/*">
+
+                <div class="step-title">2. SEGMENTACIÓN DE LA PELOTA</div>
+                <label for="colorFilter">Filtro de Contraste / Iluminación:</label>
+                <select id="colorFilter">
+                    <option value="dark">Pelota Oscura / Sombras (Fondo Claro)</option>
+                    <option value="bright">Pelota Brillante / Blanca (Fondo Oscuro)</option>
+                </select>
+
+                <label for="movementType">Dirección del Movimiento:</label>
+                <select id="movementType">
+                    <option value="rectilineo">Eje Lineal Puro (Estabiliza ruido lateral)</option>
+                    <option value="libre">Tiro Parabólico / Curva Libre</option>
+                </select>
+
+                <div class="step-title">3. CALIBRACIÓN DE LA ESCALA (CLICS EN VIDEO)</div>
+                <p style="margin: 0; font-size: 11px; color: #94a3b8;">Haz clic sobre el video para marcar el inicio y fin de un cuadro de tu cuadrícula.</p>
+                <div style="display:flex; gap:10px;">
+                    <div style="flex:1;">
+                        <label>Píxeles calculados:</label>
+                        <input type="number" id="pixelScale" value="50" readonly style="background: #475569; color: #fff; width:90%;">
+                    </div>
+                    <div style="flex:1;">
+                        <label>Distancia Real (cm):</label>
+                        <input type="number" id="cmScale" value="5" style="width:90%;">
+                    </div>
+                </div>
+
+                <div class="step-title">4. RECORTE DE TIEMPO</div>
+                <div style="display:flex; gap:10px;">
+                    <div style="flex:1;">
+                        <label>Inicio (s):</label>
+                        <input type="number" id="startTime" value="0" min="0" step="0.1" style="width:90%;">
+                    </div>
+                    <div style="flex:1;">
+                        <label>Fin (s):</label>
+                        <input type="number" id="endTime" value="10" min="0" step="0.1" style="width:90%;">
+                    </div>
+                </div>
+
+                <button id="processBtn" class="btn-process" style="margin-top:10px;">🚀 Ejecutar Detección Automática</button>
+                <button id="downloadBtn" class="btn-download" style="display:none; margin-top:10px; width:100%; text-align:center;">📥 Guardar Datos en Excel (.xlsx)</button>
+            </div>
+
+            <div class="viewer-panel">
+                <canvas id="canvasOutput"></canvas>
+                <video id="processedVideoPlayer" controls style="display:none; margin-top:5px;"></video>
+                <video id="videoPlayer" style="display:none;" preload="auto"></video>
+            </div>
+        </div>
+
+        <div class="physics-card" id="physicsCard">
+            <h3>📊 Diagnóstico Físico Automatizado</h3>
+            <p id="predictionText"></p>
+            <div class="metrics-grid">
+                <div class="metric-box">Distancia Recorrida<span id="mDist">0 cm</span></div>
+                <div class="metric-box">Velocidad Máxima<span id="mVelMax">0 cm/s</span></div>
+                <div class="metric-box">Aceleración Media<span id="mAccMed">0 cm/s²</span></div>
+                <div class="metric-box">Ecuación de Movimiento<span id="mEcuacion" style="font-size:13px; color:#38bdf8; font-family: monospace;">---</span></div>
+            </div>
+        </div>
+
+        <!-- TARJETA DE REPORTE MRU / MRUA -->
+        <div class="report-card" id="mruReportCard">
+            <div class="report-header">
+                <div class="report-title-group">
+                    <span class="report-badge">FICHA DE LABORATORIO • HOLOBODY</span>
+                    <h3 id="repMruTitulo">Reporte Experimental: Cinemática Lineal</h3>
+                    <div class="report-meta" id="repMruFecha">Generado automáticamente</div>
+                </div>
+                <button class="btn-copy-report" id="copyMruReportBtn" onclick="copiarReporte('mru')">📋 Copiar Reporte</button>
+            </div>
+            <div class="report-grid" id="repMruGrid"></div>
+            <div class="report-conclusion" id="repMruConclusion"></div>
+        </div>
+
+        <div class="results-section" id="resultsSection">
+            <h2 style="color:#38bdf8; border-bottom:2px solid #334155; padding-bottom:8px;">Gráficas Cinemáticas</h2>
+            <div class="charts-container">
+                <div class="chart-box"><canvas id="chartTrayectoria" height="120"></canvas></div>
+                <div class="chart-box"><canvas id="chartVelocidad" height="100"></canvas></div>
+                <div class="chart-box"><canvas id="chartAceleracion" height="100"></canvas></div>
+            </div>
+
+            <h2 style="color:#38bdf8; border-bottom:2px solid #334155; padding-bottom:8px; margin-top:30px;">Tabla de Valores Experimentales</h2>
+            <div class="table-container">
+                <table id="dataTable">
+                    <thead>
+                        <tr>
+                            <th>Tiempo (s)</th>
+                            <th>Posición X (cm)</th>
+                            <th>Posición Y (cm)</th>
+                            <th>Velocidad (cm/s)</th>
+                            <th>Aceleración (cm/s²)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- PESTAÑA 3: CAÍDA LIBRE -->
+    <div id="caidaTab" class="tab-content">
+        <div class="status" id="statusCaidaText">Cargue un video de caída libre para iniciar el rastreo vertical...</div>
+
+        <div class="grid-layout">
+            <div class="control-panel">
+                <div class="step-title">1. VIDEO DE CAÍDA LIBRE</div>
+                <label for="caidaVideoInput">Seleccionar Video (.mp4):</label>
+                <input type="file" id="caidaVideoInput" accept="video/*">
+
+                <div class="step-title">2. CONFIGURACIÓN DE OBJETO Y FRICCIÓN</div>
+                <label for="caidaFilter">Color / Contraste del Objeto:</label>
+                <select id="caidaFilter">
+                    <option value="verde" selected>Pelota Verde / Turquesa</option>
+                    <option value="rojo">Pelota Roja / Naranja</option>
+                    <option value="azul">Pelota Azul</option>
+                    <option value="dark">Objeto Oscuro (Fondo Claro)</option>
+                    <option value="bright">Objeto Brillante / Claro (Fondo Oscuro)</option>
+                </select>
+
+                <div style="display:flex; gap:10px;">
+                    <div style="flex:1;">
+                        <label for="caidaMasa">Masa m (kg):</label>
+                        <input type="number" id="caidaMasa" value="0.5" step="0.05" style="width:90%;">
+                    </div>
+                    <div style="flex:1;">
+                        <label for="caidaAirDrag">Resistencia Aire (k):</label>
+                        <input type="number" id="caidaAirDrag" value="0.0" min="0" max="1" step="0.05" style="width:90%;">
+                    </div>
+                </div>
+
+                <div class="step-title">3. CALIBRACIÓN DE ESCALA Y TIEMPO</div>
+                <p style="margin: 0; font-size: 11px; color: #94a3b8;">Haz dos clics en el video para medir la referencia vertical.</p>
+                <div style="display:flex; gap:10px;">
+                    <div style="flex:1;">
+                        <label>Píxeles:</label>
+                        <input type="number" id="caidaPixelScale" value="100" readonly style="background: #475569; color: #fff; width:90%;">
+                    </div>
+                    <div style="flex:1;">
+                        <label>Altura Real (m):</label>
+                        <input type="number" id="caidaMetersScale" value="1.5" step="0.1" style="width:90%;">
+                    </div>
+                </div>
+
+                <div style="display:flex; gap:10px; margin-top:5px;">
+                    <div style="flex:1;">
+                        <label>Inicio (s):</label>
+                        <input type="number" id="caidaStartTime" value="0" min="0" step="0.1" style="width:90%;">
+                    </div>
+                    <div style="flex:1;">
+                        <label>Fin (s):</label>
+                        <input type="number" id="caidaEndTime" value="5" min="0" step="0.1" style="width:90%;">
+                    </div>
+                </div>
+
+                <button id="caidaProcessBtn" class="btn-process" style="margin-top:10px;">🍎 Procesar Caída Libre con Visión Artificial</button>
+                <button id="caidaDownloadBtn" class="btn-download" style="display:none; margin-top:10px; width:100%; text-align:center;">📥 Guardar Datos de Caída Libre en Excel (.xlsx)</button>
+            </div>
+
+            <div class="viewer-panel">
+                <canvas id="caidaCanvasOutput"></canvas>
+                <video id="caidaProcessedVideoPlayer" controls style="display:none; margin-top:5px;"></video>
+                <video id="caidaVideoPlayer" style="display:none;" preload="auto"></video>
+            </div>
+        </div>
+
+        <div class="physics-card" id="caidaCard" style="display:none;">
+            <h3>📊 Diagnóstico Experimento de Caída Libre</h3>
+            <p id="caidaExplicacion"></p>
+            <div class="metrics-grid">
+                <div class="metric-box">Altura Recorrida<span id="cDist">0.00 m</span></div>
+                <div class="metric-box">Tiempo Medido<span id="cTiempo">0.00 s</span></div>
+                <div class="metric-box">Velocidad Inicial (v₀)<span id="cVelInicial">0.00 m/s</span></div>
+                <div class="metric-box">Velocidad Final (v_f)<span id="cVelocidad">0.00 m/s</span></div>
+                <div class="metric-box">Gravedad Experimental (g)<span id="cGravedad">0.00 m/s²</span></div>
+            </div>
+            <div class="comparison-banner" id="caidaComparacionVel"></div>
+        </div>
+
+        <!-- TARJETA DE REPORTE CAÍDA LIBRE -->
+        <div class="report-card" id="caidaReportCard">
+            <div class="report-header">
+                <div class="report-title-group">
+                    <span class="report-badge">FICHA DE LABORATORIO • HOLOBODY</span>
+                    <h3>Reporte Experimental: Caída Libre y Gravedad</h3>
+                    <div class="report-meta" id="repCaidaFecha">Generado automáticamente</div>
+                </div>
+                <button class="btn-copy-report" id="copyCaidaReportBtn" onclick="copiarReporte('caida')">📋 Copiar Reporte</button>
+            </div>
+            <div class="report-grid" id="repCaidaGrid"></div>
+            <div class="report-conclusion" id="repCaidaConclusion"></div>
+        </div>
+
+        <!-- GRÁFICAS Y TABLA DE CAÍDA LIBRE -->
+        <div class="results-section" id="caidaResultsSection">
+            <h2 style="color:#38bdf8; border-bottom:2px solid #334155; padding-bottom:8px;">Gráficas de Caída Libre</h2>
+            <div class="charts-container">
+                <div class="chart-box"><canvas id="chartCaidaVelocidad" height="105"></canvas></div>
+                <div class="chart-box"><canvas id="chartCaidaAceleracion" height="105"></canvas></div>
+                <div class="chart-box"><canvas id="chartCaidaAltura" height="105"></canvas></div>
+            </div>
+
+            <h2 style="color:#38bdf8; border-bottom:2px solid #334155; padding-bottom:8px; margin-top:30px;">Tabla de Valores Experimentales (Caída Libre)</h2>
+            <div class="table-container">
+                <table id="caidaDataTable">
+                    <thead>
+                        <tr>
+                            <th>Tiempo (s)</th>
+                            <th>Altura Descendida (m)</th>
+                            <th>Posición Y (m)</th>
+                            <th>Velocidad (m/s)</th>
+                            <th>Aceleración (m/s²)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="caidaTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- PESTAÑA 4: SIMULACIÓN INTERACTIVA TIPO VIDEOJUEGO -->
+    <div id="simTab" class="tab-content">
+        <div class="status" id="statusSimText">🎮 Escena lista: elige un escenario y objeto, luego presiona "Soltar / Iniciar".</div>
+
+        <div class="grid-layout">
+            <div class="control-panel">
+                <div class="step-title">1. ESCENARIO Y OBJETO PREDETERMINADO</div>
+                <label for="simEscena">Escenario de Laboratorio:</label>
+                <select id="simEscena" onchange="actualizarControlesSim()">
+                    <option value="caida" selected>🏢 Caída Libre desde Pared / Torre</option>
+                    <option value="mru_mrua">🏁 Pista Horizontal (MRU / MRUA)</option>
+                    <option value="rampa">📐 Plano Inclinado (Rampa)</option>
+                    <option value="tiro_vertical">🚀 Tiro Vertical (Lanzamiento Arriba)</option>
+                </select>
+
+                <label for="simObjeto">Objeto Predeterminado:</label>
+                <select id="simObjeto" onchange="aplicarPresetObjeto()">
+                    <option value="tenis" selected>🎾 Pelota de Tenis (0.06 kg, k = 0.02)</option>
+                    <option value="esfera">⚙️ Esfera Metálica (0.50 kg, k = 0.005)</option>
+                    <option value="balon">🏀 Balón Ligero (0.25 kg, k = 0.08)</option>
+                    <option value="pluma">🪶 Pluma / Objeto con Alto Arrastre (0.02 kg, k = 0.25)</option>
+                    <option value="canica">🔮 Canica Pesada (1.20 kg, k = 0.002)</option>
+                </select>
+
+                <div class="step-title">2. PARÁMETROS DEL ESCENARIO</div>
+
+                <!-- CONTROLES CAÍDA LIBRE -->
+                <div id="simCaidaControls">
+                    <div style="display:flex; gap:10px;">
+                        <div style="flex:1;">
+                            <label for="simAltura">Altura del Muro (m):</label>
+                            <input type="number" id="simAltura" value="5.0" min="0.5" max="40" step="0.5" style="width:90%;" onchange="dibujarEscenaInicialSim()">
+                        </div>
+                        <div style="flex:1;">
+                            <label for="simMasa">Masa (kg):</label>
+                            <input type="number" id="simMasa" value="0.06" min="0.01" max="20" step="0.01" style="width:90%;">
+                        </div>
+                    </div>
+                    <div style="display:flex; gap:10px; margin-top:8px;">
+                        <div style="flex:1;">
+                            <label for="simDrag">Resistencia Aire (k):</label>
+                            <input type="number" id="simDrag" value="0.02" min="0" max="2" step="0.01" style="width:90%;">
+                        </div>
+                        <div style="flex:1;">
+                            <label for="simGravedad">Gravedad g (m/s²):</label>
+                            <input type="number" id="simGravedad" value="9.81" min="1" max="25" step="0.01" style="width:90%;">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CONTROLES PISTA HORIZONTAL -->
+                <div id="simPistaControls" style="display:none;">
+                    <div style="display:flex; gap:10px;">
+                        <div style="flex:1;">
+                            <label for="simDistancia">Longitud Pista (m):</label>
+                            <input type="number" id="simDistancia" value="10.0" min="1" max="60" step="0.5" style="width:90%;" onchange="dibujarEscenaInicialSim()">
+                        </div>
+                        <div style="flex:1;">
+                            <label for="simVelInicial">Velocidad Inicial v₀ (m/s):</label>
+                            <input type="number" id="simVelInicial" value="2.0" min="0" max="35" step="0.5" style="width:90%;">
+                        </div>
+                    </div>
+                    <div style="margin-top:8px;">
+                        <label for="simAceleracion">Aceleración a (m/s² — pon 0 para MRU):</label>
+                        <input type="number" id="simAceleracion" value="1.5" min="-15" max="20" step="0.1" style="width:95%;">
+                    </div>
+                </div>
+
+                <!-- CONTROLES PLANO INCLINADO (RAMPA) -->
+                <div id="simRampaControls" style="display:none;">
+                    <div style="display:flex; gap:10px;">
+                        <div style="flex:1;">
+                            <label for="simRampaLongitud">Longitud Rampa (m):</label>
+                            <input type="number" id="simRampaLongitud" value="6.0" min="1" max="30" step="0.5" style="width:90%;" onchange="dibujarEscenaInicialSim()">
+                        </div>
+                        <div style="flex:1;">
+                            <label for="simRampaAngulo">Ángulo θ (grados 5°–60°):</label>
+                            <input type="number" id="simRampaAngulo" value="25" min="5" max="60" step="1" style="width:90%;" onchange="dibujarEscenaInicialSim()">
+                        </div>
+                    </div>
+                    <div style="display:flex; gap:10px; margin-top:8px;">
+                        <div style="flex:1;">
+                            <label for="simRampaFriccion">Fricción μ (0 = sin fricción):</label>
+                            <input type="number" id="simRampaFriccion" value="0.05" min="0" max="0.8" step="0.01" style="width:90%;">
+                        </div>
+                        <div style="flex:1;">
+                            <label for="simRampaGravedad">Gravedad g (m/s²):</label>
+                            <input type="number" id="simRampaGravedad" value="9.81" min="1" max="25" step="0.01" style="width:90%;">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CONTROLES TIRO VERTICAL -->
+                <div id="simTiroVerticalControls" style="display:none;">
+                    <div style="display:flex; gap:10px;">
+                        <div style="flex:1;">
+                            <label for="simTiroVelIni">Velocidad Inicial Arriba v₀ (m/s):</label>
+                            <input type="number" id="simTiroVelIni" value="8.0" min="1" max="30" step="0.5" style="width:90%;">
+                        </div>
+                        <div style="flex:1;">
+                            <label for="simTiroGravedad">Gravedad g (m/s²):</label>
+                            <input type="number" id="simTiroGravedad" value="9.81" min="1" max="25" step="0.01" style="width:90%;" onchange="dibujarEscenaInicialSim()">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="sim-actions-row">
+                    <button id="simStartBtn" class="btn-process" onclick="iniciarSimulacion()">▶️ Soltar / Iniciar</button>
+                    <button id="simPauseBtn" class="btn-secondary" onclick="pausarSimulacion()">⏸️ Pausa</button>
+                    <button id="simResetBtn" class="btn-secondary" onclick="reiniciarSimulacion()">🔄 Reiniciar</button>
+                </div>
+
+                <button id="simDownloadBtn" class="btn-download" style="display:none; margin-top:8px; width:100%; text-align:center;" onclick="exportarSimulacionExcel()">📥 Guardar Simulación en Excel (.xlsx)</button>
+            </div>
+
+            <div class="viewer-panel">
+                <canvas id="simCanvas" width="480" height="360"></canvas>
+            </div>
+        </div>
+
+        <div class="physics-card" id="simPhysicsCard">
+            <h3>📊 Resultados de la Simulación</h3>
+            <p id="simExplicacion"></p>
+            <div class="metrics-grid">
+                <div class="metric-box">Desplazamiento<span id="sDist">0.00 m</span></div>
+                <div class="metric-box">Tiempo Total<span id="sTiempo">0.00 s</span></div>
+                <div class="metric-box">Velocidad Inicial (v₀)<span id="sVelIni">0.00 m/s</span></div>
+                <div class="metric-box">Velocidad Final (v_f)<span id="sVelFin">0.00 m/s</span></div>
+                <div class="metric-box">Aceleración Media<span id="sAcc">0.00 m/s²</span></div>
+            </div>
+            <div class="comparison-banner" id="simComparacion"></div>
+        </div>
+
+        <!-- TARJETA DE REPORTE SIMULACIÓN -->
+        <div class="report-card" id="simReportCard">
+            <div class="report-header">
+                <div class="report-title-group">
+                    <span class="report-badge">FICHA DE SIMULACIÓN • HOLOBODY</span>
+                    <h3 id="repSimTitulo">Reporte de Simulación Interactiva</h3>
+                    <div class="report-meta" id="repSimFecha">Generado automáticamente</div>
+                </div>
+                <button class="btn-copy-report" id="copySimReportBtn" onclick="copiarReporte('sim')">📋 Copiar Reporte</button>
+            </div>
+            <div class="report-grid" id="repSimGrid"></div>
+            <div class="report-conclusion" id="repSimConclusion"></div>
+        </div>
+
+        <!-- GRÁFICAS Y TABLA DE SIMULACIÓN -->
+        <div class="results-section" id="simResultsSection">
+            <h2 style="color:#38bdf8; border-bottom:2px solid #334155; padding-bottom:8px;">Gráficas de la Simulación</h2>
+            <div class="charts-container">
+                <div class="chart-box"><canvas id="chartSimPosicion" height="105"></canvas></div>
+                <div class="chart-box"><canvas id="chartSimVelocidad" height="105"></canvas></div>
+                <div class="chart-box"><canvas id="chartSimAceleracion" height="105"></canvas></div>
+            </div>
+
+            <h2 style="color:#38bdf8; border-bottom:2px solid #334155; padding-bottom:8px; margin-top:30px;">Tabla de Datos Simulados</h2>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Tiempo (s)</th>
+                            <th>Posición / Altura (m)</th>
+                            <th>Velocidad (m/s)</th>
+                            <th>Aceleración (m/s²)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="simTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- BOTÓN Y PANEL LATERAL DEL ASISTENTE -->
+<button class="assistant-fab" onclick="toggleAssistant()" aria-label="Abrir asistente de ayuda">
+    💬 Asistente HOLOBODY
+</button>
+
+<aside id="assistantDrawer" class="assistant-drawer" aria-label="Asistente de dudas frecuentes">
+    <div class="assistant-header">
+        <h3>🤖 Asistente IA Nivel 1</h3>
+        <button class="assistant-close" onclick="toggleAssistant()">✕</button>
+    </div>
+
+    <div class="assistant-search-bar">
+        <input
+            type="text"
+            id="assistantSearchInput"
+            class="assistant-search-input"
+            placeholder="🔍 Escribe tu duda (ej. rampa, tiro, calibrar, mano, excel)..."
+            oninput="renderFaqMenu()"
+        >
+        <button class="btn-diag-ai" onclick="diagnosticarUltimoAnalisis()">✨ Diagnosticar mi último análisis</button>
+    </div>
+
+    <div class="assistant-topics">
+        <button class="topic-pill active" onclick="seleccionarTema('todos', this)">Todas</button>
+        <button class="topic-pill" onclick="seleccionarTema('calibracion', this)">Calibración</button>
+        <button class="topic-pill" onclick="seleccionarTema('deteccion', this)">Detección</button>
+        <button class="topic-pill" onclick="seleccionarTema('fisica', this)">Física / Sim</button>
+    </div>
+
+    <div class="assistant-body" id="assistantBody"></div>
+</aside>
+
+<script>
+    // --- ESTADO GLOBAL PARA DIAGNÓSTICO DE IA NIVEL 1 Y REPORTES ---
+    let ultimoDiagnosticoContexto = null;
+    let reporteTextoMru = "";
+    let reporteTextoCaida = "";
+    let reporteTextoSim = "";
+
+    function copiarReporte(tipo) {
+        let texto = reporteTextoMru;
+        let btnId = 'copyMruReportBtn';
+        if (tipo === 'caida') {
+            texto = reporteTextoCaida;
+            btnId = 'copyCaidaReportBtn';
+        } else if (tipo === 'sim') {
+            texto = reporteTextoSim;
+            btnId = 'copySimReportBtn';
+        }
+        const btn = document.getElementById(btnId);
+        if (!texto || !btn) return;
+
+        navigator.clipboard.writeText(texto).then(() => {
+            const original = btn.innerText;
+            btn.innerText = "✅ ¡Reporte Copiado!";
+            btn.style.background = "#10b981";
+            btn.style.color = "#fff";
+            setTimeout(() => {
+                btn.innerText = original;
+                btn.style.background = "#38bdf8";
+                btn.style.color = "#0f172a";
+            }, 2200);
+        }).catch(() => {
+            alert("No se pudo copiar automáticamente al portapapeles.");
+        });
+    }
+
+    function obtenerFechaHoraActual() {
+        const ahora = new Date();
+        return ahora.toLocaleDateString('es-MX', {
+            year: 'numeric', month: 'short', day: '2-digit',
+            hour: '2-digit', minute: '2-digit'
+        });
+    }
+
+    // --- ASISTENTE CON BÚSQUEDA + DIAGNÓSTICO CONTEXTUAL ---
+    const faqData = [
+        {
+            id: 'cal-cuadricula',
+            tema: 'calibracion',
+            keywords: ['calibrar', 'escala', 'pixeles', 'cuadro', 'cm', 'metros', 'clics', 'regla'],
+            pregunta: '¿Cómo calibro la escala con dos clics sobre el video?',
+            respuesta: 'Indica la distancia real (por ejemplo, <strong>5 cm</strong> o <strong>1.5 m</strong>) y haz dos clics en los extremos de una referencia visible en el video. Medir varios cuadros juntos reduce el error de redondeo.',
+            tip: 'Tip: Si te equivocas de punto, haz un tercer clic para reiniciar el trazo.'
+        },
+        {
+            id: 'cal-recorte',
+            tema: 'calibracion',
+            keywords: ['inicio', 'fin', 'recortar', 'tiempo', 'segundos', 'trim'],
+            pregunta: '¿Para qué sirven los campos de Inicio (s) y Fin (s)?',
+            respuesta: 'Sirven para analizar únicamente el tramo útil del movimiento y evitar segundos donde el objeto está quieto, rebota o aparece tu mano soltándolo.',
+            tip: 'Tip: Coloca "Inicio (s)" justo en el fotograma en que el objeto queda libre.'
+        },
+        {
+            id: 'det-mano',
+            tema: 'deteccion',
+            keywords: ['mano', 'sombra', 'confunde', 'detecta', 'pelota', 'color', 'hsv', 'filtro', 'ruido'],
+            pregunta: '¿Qué hago si el programa confunde la pelota con mi mano o con sombras?',
+            respuesta: 'Recorta el tiempo de inicio para omitir la mano, usa iluminación pareja y selecciona en Caída Libre el color específico de tu objeto (verde, rojo o azul) o el filtro de contraste adecuado.',
+            tip: 'Tip: Si un video tiene demasiada interferencia, prueba primero la pestaña Simulación para ver cómo se comportan las curvas.'
+        },
+        {
+            id: 'det-opencv',
+            tema: 'deteccion',
+            keywords: ['opencv', 'cargando', 'lento', 'offline', 'internet', 'error'],
+            pregunta: '¿Por qué tarda o muestra un mensaje al iniciar OpenCV?',
+            respuesta: 'El motor de visión artificial OpenCV.js se inicializa en el navegador antes de leer fotogramas. Una vez que el estado pasa a verde, ya puedes procesar videos.',
+            tip: 'Tip: El asistente y la simulación funcionan totalmente en local.'
+        },
+        {
+            id: 'fis-mru-mrua',
+            tema: 'fisica',
+            keywords: ['mru', 'mrua', 'aceleracion', 'velocidad', 'ecuacion', 'rectilineo'],
+            pregunta: '¿Cómo se diferencia MRU de MRUA en los resultados?',
+            respuesta: 'Si la velocidad se mantiene casi constante con poca dispersión, el sistema lo clasifica como <strong>MRU</strong>; si la velocidad cambia de forma marcada, lo clasifica como <strong>MRUA</strong> y muestra su modelo cuadrático.',
+            tip: 'Tip: Observa la gráfica de Velocidad vs. Tiempo para ver si es plana o inclinada.'
+        },
+        {
+            id: 'fis-caida',
+            tema: 'fisica',
+            keywords: ['caida', 'gravedad', 'masa', 'aire', 'resistencia', 'excel', 'reporte'],
+            pregunta: '¿Cómo funciona Caída Libre, la comparación de velocidades y el Excel?',
+            respuesta: 'Calcula altura recorrida, tiempo, velocidad inicial (v₀), velocidad final (v_f) y gravedad experimental (g), mostrando su comparativa, gráficas, tabla, ficha de reporte y descarga a <strong>.xlsx</strong>.',
+            tip: 'Tip: Con resistencia del aire cercana a 0, objetos de distinta masa caen con la misma aceleración gravitacional.'
+        },
+        {
+            id: 'fis-simulacion',
+            tema: 'fisica',
+            keywords: ['simulacion', 'videojuego', 'muro', 'pista', 'rampa', 'tiro', 'vertical', 'objeto'],
+            pregunta: '¿Qué escenarios y objetos puedo probar en la Simulación?',
+            respuesta: 'Puedes probar <strong>Caída Libre desde Muro</strong>, <strong>Pista Horizontal (MRU/MRUA)</strong>, <strong>Plano Inclinado (Rampa)</strong> y <strong>Tiro Vertical</strong> con 5 objetos predeterminados (pelota de tenis, esfera metálica, balón ligero, pluma de alto arrastre y canica pesada).',
+            tip: 'Tip: Sube el ángulo θ en la Rampa para ver cómo aumenta la aceleración a lo largo del plano.'
+        }
+    ];
+
+    let temaActual = 'todos';
+
+    function toggleAssistant() {
+        const drawer = document.getElementById('assistantDrawer');
+        drawer.classList.toggle('open');
+        if (drawer.classList.contains('open')) {
+            renderFaqMenu();
+        }
+    }
+
+    function seleccionarTema(tema, btnEl) {
+        temaActual = tema;
+        document.querySelectorAll('.topic-pill').forEach(b => b.classList.remove('active'));
+        if (btnEl) btnEl.classList.add('active');
+        renderFaqMenu();
+    }
+
+    function renderFaqMenu() {
+        const body = document.getElementById('assistantBody');
+        const inputEl = document.getElementById('assistantSearchInput');
+        const query = (inputEl ? inputEl.value : '').trim().toLowerCase();
+
+        const filtradas = faqData.filter(item => {
+            const coincideTema = temaActual === 'todos' || item.tema === temaActual;
+            if (!coincideTema) return false;
+            if (!query) return true;
+            const textoBuscable = `${item.pregunta} ${item.respuesta} ${item.keywords.join(' ')}`.toLowerCase();
+            return textoBuscable.includes(query);
+        });
+
+        let html = `<p style="margin:0; font-size:12.5px; color:#cbd5e1;">${query ? `Resultados para "${query}":` : 'Selecciona una duda frecuente o busca una palabra clave:'}</p><div class="faq-list">`;
+
+        if (filtradas.length === 0) {
+            html += `<div class="answer-box">No encontré una coincidencia exacta para "<strong>${query}</strong>". Prueba con palabras como <em>rampa</em>, <em>tiro</em>, <em>calibrar</em>, <em>mano</em>, <em>gravedad</em> o <em>excel</em>.</div>`;
+        } else {
+            filtradas.forEach(item => {
+                html += `<button class="faq-btn" onclick="mostrarRespuesta('${item.id}')">${item.pregunta}</button>`;
+            });
+        }
+        html += `</div>`;
+        body.innerHTML = html;
+    }
+
+    function mostrarRespuesta(id) {
+        const item = faqData.find(q => q.id === id);
+        if (!item) return;
+        const body = document.getElementById('assistantBody');
+        body.innerHTML = `
+            <button class="btn-back-faq" onclick="renderFaqMenu()">⬅ Volver a las preguntas</button>
+            <div class="answer-box">
+                <h4>${item.pregunta}</h4>
+                <div>${item.respuesta}</div>
+                <div class="tip-box">${item.tip}</div>
+            </div>
+        `;
+    }
+
+    function diagnosticarUltimoAnalisis() {
+        const body = document.getElementById('assistantBody');
+        if (!ultimoDiagnosticoContexto) {
+            body.innerHTML = `
+                <button class="btn-back-faq" onclick="renderFaqMenu()">⬅ Volver a las preguntas</button>
+                <div class="answer-box">
+                    <h4>Sin análisis recientes todavía</h4>
+                    <div>Aún no has ejecutado un análisis de video ni una simulación en esta sesión. Puedes cargar un video o probar la pestaña <strong>🎮 Simulación</strong> y luego volver aquí para obtener un diagnóstico automático.</div>
+                </div>
+            `;
+            return;
+        }
+
+        const ctxData = ultimoDiagnosticoContexto;
+        let diagnosticoHtml = "";
+        let tipHtml = "";
+
+        if (ctxData.tipo === 'caida_video') {
+            const difPct = Math.abs(((ctxData.gExp - 9.81) / 9.81) * 100);
+            diagnosticoHtml = `Último análisis: <strong>Caída Libre (Video)</strong> con altura de <strong>${ctxData.altura.toFixed(2)} m</strong> en <strong>${ctxData.tiempo.toFixed(2)} s</strong>, v₀ = <strong>${ctxData.vIni.toFixed(2)} m/s</strong>, v_f = <strong>${ctxData.vFin.toFixed(2)} m/s</strong> y g experimental = <strong>${ctxData.gExp.toFixed(2)} m/s²</strong> (diferencia de <strong>${difPct.toFixed(1)}%</strong> frente a 9.81 m/s²).`;
+            tipHtml = difPct > 25 && ctxData.dragK === 0
+                ? `Sugerencia IA Nivel 1: La diferencia respecto a 9.81 m/s² es amplia. Revisa que los dos clics de calibración correspondan a la altura real en metros y que el recorte de tiempo inicie justo al soltar el objeto.`
+                : `Sugerencia IA Nivel 1: La medición es consistente con el tramo grabado. Puedes copiar tu Tarjeta de Reporte o descargar el archivo Excel de Caída Libre.`;
+        } else if (ctxData.tipo === 'mru_video') {
+            diagnosticoHtml = `Último análisis: <strong>${ctxData.modelo}</strong> con distancia recorrida de <strong>${ctxData.distancia.toFixed(1)} cm</strong>, velocidad máxima de <strong>${ctxData.velMax.toFixed(1)} cm/s</strong> y aceleración media de <strong>${ctxData.accMed.toFixed(1)} cm/s²</strong>.`;
+            tipHtml = `Sugerencia IA Nivel 1: Si ves picos bruscos en la aceleración, revisa que el recorte de tiempo no incluya el arranque manual o el frenado brusco al final del video.`;
+        } else if (ctxData.tipo === 'simulacion') {
+            diagnosticoHtml = `Último análisis: <strong>Simulación (${ctxData.escena})</strong> con <strong>${ctxData.objeto}</strong>, desplazamiento de <strong>${ctxData.distancia.toFixed(2)} m</strong> en <strong>${ctxData.tiempo.toFixed(2)} s</strong>, pasando de v₀ = <strong>${ctxData.vIni.toFixed(2)} m/s</strong> a v_f = <strong>${ctxData.vFin.toFixed(2)} m/s</strong>.`;
+            tipHtml = `Sugerencia IA Nivel 1: Prueba cambiar de escenario (como Rampa o Tiro Vertical) o de objeto predeterminado para comparar cómo cambian la rapidez y las gráficas.`;
+        }
+
+        body.innerHTML = `
+            <button class="btn-back-faq" onclick="renderFaqMenu()">⬅ Volver a las preguntas</button>
+            <div class="answer-box">
+                <h4>✨ Diagnóstico Automático del Último Resultado</h4>
+                <div>${diagnosticoHtml}</div>
+                <div class="tip-box">${tipHtml}</div>
+            </div>
+        `;
+    }
+
+    // --- LÓGICA DE NAVEGACIÓN DE PESTAÑAS ---
+    function cambiarTab(tabId, btnEl) {
+        document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+
+        document.getElementById(tabId).classList.add('active');
+        if (btnEl) btnEl.classList.add('active');
+
+        if (tabId === 'mruTab') {
+            redibujarCanvasBase();
+        } else if (tabId === 'caidaTab') {
+            redibujarCaidaCanvasBase();
+        } else if (tabId === 'simTab') {
+            dibujarEscenaInicialSim();
+        }
+    }
+
+    // --- PESTAÑA 4: SIMULACIÓN INTERACTIVA TIPO VIDEOJUEGO ---
+    const simCanvas = document.getElementById('simCanvas');
+    const simCtx = simCanvas.getContext('2d');
+    const statusSimText = document.getElementById('statusSimText');
+    const simPhysicsCard = document.getElementById('simPhysicsCard');
+    const simReportCard = document.getElementById('simReportCard');
+    const simResultsSection = document.getElementById('simResultsSection');
+    const simTableBody = document.getElementById('simTableBody');
+    const simDownloadBtn = document.getElementById('simDownloadBtn');
+
+    let simAnimId = null;
+    let simCorriendo = false;
+    let simPausado = false;
+    let simTiempoActual = 0;
+    let simLastTimestamp = 0;
+    let simDatosSerie = [];
+    let simResumenExcel = [];
+    let chartSimP, chartSimV, chartSimA;
+    let simFaseTiro = "subida"; // para tiro vertical
+
+    const presetsObjetos = {
+        tenis: { nombre: "Pelota de Tenis", color: "#a3e635", radio: 13, masa: 0.06, drag: 0.02, friccion: 0.05 },
+        esfera: { nombre: "Esfera Metálica", color: "#94a3b8", radio: 12, masa: 0.50, drag: 0.005, friccion: 0.02 },
+        balon: { nombre: "Balón Ligero", color: "#fb923c", radio: 16, masa: 0.25, drag: 0.08, friccion: 0.08 },
+        pluma: { nombre: "Pluma / Alto Arrastre", color: "#e879f9", radio: 14, masa: 0.02, drag: 0.25, friccion: 0.15 },
+        canica: { nombre: "Canica Pesada", color: "#38bdf8", radio: 10, masa: 1.20, drag: 0.002, friccion: 0.01 }
+    };
+
+    function aplicarPresetObjeto() {
+        const key = document.getElementById('simObjeto').value;
+        const preset = presetsObjetos[key];
+        if (preset) {
+            document.getElementById('simMasa').value = preset.masa;
+            document.getElementById('simDrag').value = preset.drag;
+            document.getElementById('simRampaFriccion').value = preset.friccion;
+        }
+        reiniciarSimulacion();
+    }
+
+    function actualizarControlesSim() {
+        const escena = document.getElementById('simEscena').value;
+        document.getElementById('simCaidaControls').style.display = escena === 'caida' ? 'block' : 'none';
+        document.getElementById('simPistaControls').style.display = escena === 'mru_mrua' ? 'block' : 'none';
+        document.getElementById('simRampaControls').style.display = escena === 'rampa' ? 'block' : 'none';
+        document.getElementById('simTiroVerticalControls').style.display = escena === 'tiro_vertical' ? 'block' : 'none';
+        reiniciarSimulacion();
+    }
+
+    function reiniciarSimulacion() {
+        simCorriendo = false;
+        simPausado = false;
+        simTiempoActual = 0;
+        simDatosSerie = [];
+        simFaseTiro = "subida";
+        if (simAnimId) cancelAnimationFrame(simAnimId);
+        simPhysicsCard.style.display = "none";
+        simReportCard.style.display = "none";
+        simResultsSection.style.display = "none";
+        simDownloadBtn.style.display = "none";
+        statusSimText.innerText = "🎮 Escena reiniciada. Presiona 'Soltar / Iniciar' para comenzar.";
+        statusSimText.style.background = "#0284c7";
+        dibujarEscenaInicialSim();
+    }
+
+    function pausarSimulacion() {
+        if (!simCorriendo) return;
+        simPausado = !simPausado;
+        if (!simPausado) {
+            simLastTimestamp = performance.now();
+            simAnimId = requestAnimationFrame(pasoSimulacion);
+            statusSimText.innerText = "▶️ Simulación en curso...";
+            statusSimText.style.background = "#f59e0b";
+        } else {
+            if (simAnimId) cancelAnimationFrame(simAnimId);
+            statusSimText.innerText = "⏸️ Simulación en pausa.";
+            statusSimText.style.background = "#64748b";
+        }
+    }
+
+    function obtenerGeometriaRampa() {
+        const anguloDeg = Math.min(60, Math.max(5, parseFloat(document.getElementById('simRampaAngulo').value) || 25));
+        const rad = (anguloDeg * Math.PI) / 180;
+        const xTop = 70;
+        const yTop = 65;
+        const rampaPxLen = 330;
+        const xBot = xTop + Math.cos(rad) * rampaPxLen;
+        const yBot = Math.min(315, yTop + Math.sin(rad) * rampaPxLen);
+        return { anguloDeg, rad, xTop, yTop, xBot, yBot };
+    }
+
+    function dibujarCuadriculaFondo() {
+        simCtx.clearRect(0, 0, simCanvas.width, simCanvas.height);
+        simCtx.strokeStyle = "rgba(148, 163, 184, 0.12)";
+        simCtx.lineWidth = 1;
+        for (let x = 0; x <= simCanvas.width; x += 30) {
+            simCtx.beginPath(); simCtx.moveTo(x, 0); simCtx.lineTo(x, simCanvas.height); simCtx.stroke();
+        }
+        for (let y = 0; y <= simCanvas.height; y += 30) {
+            simCtx.beginPath(); simCtx.moveTo(0, y); simCtx.lineTo(simCanvas.width, y); simCtx.stroke();
+        }
+    }
+
+    function dibujarEscenaInicialSim() {
+        const escena = document.getElementById('simEscena').value;
+        const objKey = document.getElementById('simObjeto').value;
+        const preset = presetsObjetos[objKey] || presetsObjetos.tenis;
+
+        dibujarCuadriculaFondo();
+
+        if (escena === 'caida') {
+            const alturaM = parseFloat(document.getElementById('simAltura').value) || 5;
+            simCtx.fillStyle = "#334155";
+            simCtx.fillRect(40, 40, 28, 270);
+            simCtx.fillStyle = "#475569";
+            simCtx.fillRect(40, 40, 120, 14);
+            simCtx.fillStyle = "#1e293b";
+            simCtx.fillRect(0, 310, simCanvas.width, 50);
+            simCtx.strokeStyle = "#38bdf8";
+            simCtx.lineWidth = 2;
+            simCtx.beginPath(); simCtx.moveTo(0, 310); simCtx.lineTo(simCanvas.width, 310); simCtx.stroke();
+
+            simCtx.fillStyle = "#94a3b8";
+            simCtx.font = "12px Segoe UI";
+            simCtx.fillText(`Muro: ${alturaM.toFixed(1)} m`, 76, 30);
+
+            simCtx.beginPath();
+            simCtx.arc(170, 54 + preset.radio, preset.radio, 0, Math.PI * 2);
+            simCtx.fillStyle = preset.color;
+            simCtx.fill();
+            simCtx.strokeStyle = "#fff";
+            simCtx.lineWidth = 1.5;
+            simCtx.stroke();
+        } else if (escena === 'mru_mrua') {
+            const distM = parseFloat(document.getElementById('simDistancia').value) || 10;
+            simCtx.fillStyle = "#1e293b";
+            simCtx.fillRect(0, 220, simCanvas.width, 140);
+            simCtx.strokeStyle = "#38bdf8";
+            simCtx.lineWidth = 3;
+            simCtx.beginPath(); simCtx.moveTo(30, 220); simCtx.lineTo(simCanvas.width - 30, 220); simCtx.stroke();
+
+            simCtx.fillStyle = "#94a3b8";
+            simCtx.font = "12px Segoe UI";
+            simCtx.fillText(`Pista: ${distM.toFixed(1)} m`, 34, 40);
+
+            simCtx.beginPath();
+            simCtx.arc(46, 220 - preset.radio, preset.radio, 0, Math.PI * 2);
+            simCtx.fillStyle = preset.color;
+            simCtx.fill();
+            simCtx.strokeStyle = "#fff";
+            simCtx.lineWidth = 1.5;
+            simCtx.stroke();
+        } else if (escena === 'rampa') {
+            const geom = obtenerGeometriaRampa();
+            const longM = parseFloat(document.getElementById('simRampaLongitud').value) || 6;
+
+            // Suelo base
+            simCtx.fillStyle = "#1e293b";
+            simCtx.fillRect(0, 320, simCanvas.width, 40);
+            // Triángulo soporte de rampa
+            simCtx.fillStyle = "rgba(51, 65, 85, 0.7)";
+            simCtx.beginPath();
+            simCtx.moveTo(geom.xTop, geom.yTop);
+            simCtx.lineTo(geom.xBot, geom.yBot);
+            simCtx.lineTo(geom.xTop, geom.yBot);
+            simCtx.closePath();
+            simCtx.fill();
+
+            // Superficie de rampa
+            simCtx.strokeStyle = "#38bdf8";
+            simCtx.lineWidth = 4;
+            simCtx.beginPath();
+            simCtx.moveTo(geom.xTop, geom.yTop);
+            simCtx.lineTo(geom.xBot, geom.yBot);
+            simCtx.stroke();
+
+            simCtx.fillStyle = "#94a3b8";
+            simCtx.font = "12px Segoe UI";
+            simCtx.fillText(`Rampa: ${longM.toFixed(1)} m • θ = ${geom.anguloDeg}°`, 24, 30);
+
+            // Centro del objeto desplazado sobre la normal de la rampa
+            const nx = Math.sin(geom.rad);
+            const ny = -Math.cos(geom.rad);
+            const cx = geom.xTop + nx * preset.radio;
+            const cy = geom.yTop + ny * preset.radio;
+
+            simCtx.beginPath();
+            simCtx.arc(cx, cy, preset.radio, 0, Math.PI * 2);
+            simCtx.fillStyle = preset.color;
+            simCtx.fill();
+            simCtx.strokeStyle = "#fff";
+            simCtx.lineWidth = 1.5;
+            simCtx.stroke();
+        } else if (escena === 'tiro_vertical') {
+            const v0 = parseFloat(document.getElementById('simTiroVelIni').value) || 8;
+            const g = Math.max(0.5, parseFloat(document.getElementById('simTiroGravedad').value) || 9.81);
+            const hMaxTeorica = (v0 * v0) / (2 * g);
+
+            // Suelo de lanzamiento
+            simCtx.fillStyle = "#1e293b";
+            simCtx.fillRect(0, 315, simCanvas.width, 45);
+            simCtx.strokeStyle = "#38bdf8";
+            simCtx.lineWidth = 3;
+            simCtx.beginPath(); simCtx.moveTo(20, 315); simCtx.lineTo(simCanvas.width - 20, 315); simCtx.stroke();
+
+            // Línea guía de altura máxima teórica
+            simCtx.setLineDash([5, 5]);
+            simCtx.strokeStyle = "rgba(250, 204, 21, 0.45)";
+            simCtx.lineWidth = 1.5;
+            simCtx.beginPath(); simCtx.moveTo(70, 55); simCtx.lineTo(simCanvas.width - 40, 55); simCtx.stroke();
+            simCtx.setLineDash([]);
+
+            simCtx.fillStyle = "#facc15";
+            simCtx.font = "12px Segoe UI";
+            simCtx.fillText(`h_máx teórica: ${hMaxTeorica.toFixed(2)} m`, 76, 46);
+
+            simCtx.beginPath();
+            simCtx.arc(240, 315 - preset.radio, preset.radio, 0, Math.PI * 2);
+            simCtx.fillStyle = preset.color;
+            simCtx.fill();
+            simCtx.strokeStyle = "#fff";
+            simCtx.lineWidth = 1.5;
+            simCtx.stroke();
+        }
+    }
+
+    function iniciarSimulacion() {
+        if (simCorriendo && !simPausado) return;
+        if (simPausado) {
+            pausarSimulacion();
+            return;
+        }
+
+        simCorriendo = true;
+        simPausado = false;
+        simTiempoActual = 0;
+        simDatosSerie = [];
+        simFaseTiro = "subida";
+        simPhysicsCard.style.display = "none";
+        simReportCard.style.display = "none";
+        simResultsSection.style.display = "none";
+        simDownloadBtn.style.display = "none";
+
+        statusSimText.innerText = "⏳ Simulación en ejecución...";
+        statusSimText.style.background = "#f59e0b";
+
+        const escena = document.getElementById('simEscena').value;
+        const preset = presetsObjetos[document.getElementById('simObjeto').value] || presetsObjetos.tenis;
+
+        if (escena === 'caida') {
+            const g = parseFloat(document.getElementById('simGravedad').value) || 9.81;
+            simDatosSerie.push({ t: 0, pos: 0, v: 0, a: g, drawX: 170, drawY: 54 + preset.radio });
+        } else if (escena === 'mru_mrua') {
+            const v0 = parseFloat(document.getElementById('simVelInicial').value) || 0;
+            const acc = parseFloat(document.getElementById('simAceleracion').value) || 0;
+            simDatosSerie.push({ t: 0, pos: 0, v: v0, a: acc, drawX: 46, drawY: 220 - preset.radio });
+        } else if (escena === 'rampa') {
+            const geom = obtenerGeometriaRampa();
+            const g = parseFloat(document.getElementById('simRampaGravedad').value) || 9.81;
+            const mu = parseFloat(document.getElementById('simRampaFriccion').value) || 0;
+            const acc0 = Math.max(0, g * Math.sin(geom.rad) - mu * g * Math.cos(geom.rad));
+            const nx = Math.sin(geom.rad);
+            const ny = -Math.cos(geom.rad);
+            simDatosSerie.push({ t: 0, pos: 0, v: 0, a: acc0, drawX: geom.xTop + nx * preset.radio, drawY: geom.yTop + ny * preset.radio });
+        } else if (escena === 'tiro_vertical') {
+            const v0 = parseFloat(document.getElementById('simTiroVelIni').value) || 8;
+            const g = parseFloat(document.getElementById('simTiroGravedad').value) || 9.81;
+            simDatosSerie.push({ t: 0, pos: 0, v: v0, a: -g, drawX: 240, drawY: 315 - preset.radio });
+        }
+
+        simLastTimestamp = performance.now();
+        simAnimId = requestAnimationFrame(pasoSimulacion);
+    }
+
+    function pasoSimulacion(timestamp) {
+        if (!simCorriendo || simPausado) return;
+
+        const dtReal = Math.min(0.05, (timestamp - simLastTimestamp) / 1000);
+        simLastTimestamp = timestamp;
+        simTiempoActual += dtReal;
+
+        const escena = document.getElementById('simEscena').value;
+        const objKey = document.getElementById('simObjeto').value;
+        const preset = presetsObjetos[objKey] || presetsObjetos.tenis;
+
+        let terminado = false;
+
+        if (escena === 'caida') {
+            const alturaTotal = Math.max(0.5, parseFloat(document.getElementById('simAltura').value) || 5);
+            const g = Math.max(0.1, parseFloat(document.getElementById('simGravedad').value) || 9.81);
+            const m = Math.max(0.01, parseFloat(document.getElementById('simMasa').value) || 0.1);
+            const k = Math.max(0, parseFloat(document.getElementById('simDrag').value) || 0);
+
+            const prev = simDatosSerie[simDatosSerie.length - 1];
+            const dtStep = Math.max(0.005, simTiempoActual - prev.t);
+            const accInst = g - (k * prev.v) / m;
+            let velInst = Math.max(0, prev.v + accInst * dtStep);
+            let hDesc = prev.pos + velInst * dtStep;
+
+            if (hDesc >= alturaTotal) {
+                hDesc = alturaTotal;
+                terminado = true;
+            }
+
+            const yTop = 54 + preset.radio;
+            const yBot = 310 - preset.radio;
+            const drawY = yTop + (hDesc / alturaTotal) * (yBot - yTop);
+            const drawX = 170 + Math.sin(simTiempoActual * 6) * (k * 12);
+
+            simDatosSerie.push({ t: simTiempoActual, pos: hDesc, v: velInst, a: accInst, drawX, drawY });
+        } else if (escena === 'mru_mrua') {
+            const distTotal = Math.max(1, parseFloat(document.getElementById('simDistancia').value) || 10);
+            const v0 = parseFloat(document.getElementById('simVelInicial').value) || 0;
+            const acc = parseFloat(document.getElementById('simAceleracion').value) || 0;
+
+            let posX = v0 * simTiempoActual + 0.5 * acc * simTiempoActual * simTiempoActual;
+            let velInst = v0 + acc * simTiempoActual;
+
+            if (posX >= distTotal) {
+                posX = distTotal;
+                terminado = true;
+            } else if (posX <= 0 && simTiempoActual > 0.2) {
+                posX = 0;
+                terminado = true;
+            }
+
+            const xStart = 46;
+            const xEnd = simCanvas.width - 46;
+            const drawX = xStart + (Math.max(0, posX) / distTotal) * (xEnd - xStart);
+            const drawY = 220 - preset.radio;
+
+            simDatosSerie.push({ t: simTiempoActual, pos: Math.max(0, posX), v: velInst, a: acc, drawX, drawY });
+        } else if (escena === 'rampa') {
+            const geom = obtenerGeometriaRampa();
+            const longTotal = Math.max(1, parseFloat(document.getElementById('simRampaLongitud').value) || 6);
+            const g = Math.max(0.5, parseFloat(document.getElementById('simRampaGravedad').value) || 9.81);
+            const mu = Math.max(0, parseFloat(document.getElementById('simRampaFriccion').value) || 0);
+
+            const accRampa = Math.max(0.05, g * Math.sin(geom.rad) - mu * g * Math.cos(geom.rad));
+            let sRecorrido = 0.5 * accRampa * simTiempoActual * simTiempoActual;
+            let velInst = accRampa * simTiempoActual;
+
+            if (sRecorrido >= longTotal) {
+                sRecorrido = longTotal;
+                terminado = true;
+            }
+
+            const frac = sRecorrido / longTotal;
+            const nx = Math.sin(geom.rad);
+            const ny = -Math.cos(geom.rad);
+            const drawX = geom.xTop + frac * (geom.xBot - geom.xTop) + nx * preset.radio;
+            const drawY = geom.yTop + frac * (geom.yBot - geom.yTop) + ny * preset.radio;
+
+            simDatosSerie.push({ t: simTiempoActual, pos: sRecorrido, v: velInst, a: accRampa, drawX, drawY });
+        } else if (escena === 'tiro_vertical') {
+            const v0 = Math.max(1, parseFloat(document.getElementById('simTiroVelIni').value) || 8);
+            const g = Math.max(0.5, parseFloat(document.getElementById('simTiroGravedad').value) || 9.81);
+            const hMax = (v0 * v0) / (2 * g);
+            const tVuelo = (2 * v0) / g;
+
+            if (simTiempoActual >= tVuelo) {
+                simTiempoActual = tVuelo;
+                terminado = true;
+            }
+
+            let yAlt = v0 * simTiempoActual - 0.5 * g * simTiempoActual * simTiempoActual;
+            let velInst = v0 - g * simTiempoActual;
+            if (yAlt < 0) yAlt = 0;
+
+            if (velInst < 0 && simFaseTiro === "subida") {
+                simFaseTiro = "bajada";
+                statusSimText.innerText = "⬇️ Alcanzó altura máxima — regresando por gravedad...";
+            }
+
+            const yBase = 315 - preset.radio;
+            const yMaxPx = 55 + preset.radio;
+            const normH = hMax > 0 ? Math.min(1, yAlt / hMax) : 0;
+            const drawY = yBase - normH * (yBase - yMaxPx);
+            const drawX = 240;
+
+            simDatosSerie.push({ t: simTiempoActual, pos: yAlt, v: velInst, a: -g, drawX, drawY });
+        }
+
+        renderizarCuadroSimulacion(escena, preset);
+
+        if (terminado || simTiempoActual >= 18) {
+            simCorriendo = false;
+            statusSimText.innerText = "✅ ¡Simulación completada! Resultados, gráficas y Excel listos.";
+            statusSimText.style.background = "#10b981";
+            finalizarDatosSimulacion(escena, preset);
+            return;
+        }
+
+        simAnimId = requestAnimationFrame(pasoSimulacion);
+    }
+
+    function renderizarCuadroSimulacion(escena, preset) {
+        dibujarEscenaInicialSim();
+
+        if (simDatosSerie.length > 1) {
+            simCtx.beginPath();
+            simCtx.moveTo(simDatosSerie[0].drawX, simDatosSerie[0].drawY);
+            for (let i = 1; i < simDatosSerie.length; i++) {
+                simCtx.lineTo(simDatosSerie[i].drawX, simDatosSerie[i].drawY);
+            }
+            simCtx.strokeStyle = "#38bdf8";
+            simCtx.lineWidth = 2.5;
+            simCtx.stroke();
+        }
+
+        const act = simDatosSerie[simDatosSerie.length - 1];
+        simCtx.beginPath();
+        simCtx.arc(act.drawX, act.drawY, preset.radio, 0, Math.PI * 2);
+        simCtx.fillStyle = preset.color;
+        simCtx.fill();
+        simCtx.strokeStyle = "#facc15";
+        simCtx.lineWidth = 2;
+        simCtx.stroke();
+
+        simCtx.fillStyle = "rgba(15, 23, 42, 0.82)";
+        simCtx.fillRect(simCanvas.width - 170, 12, 158, 52);
+        simCtx.fillStyle = "#38bdf8";
+        simCtx.font = "bold 12px monospace";
+        simCtx.fillText(`t: ${act.t.toFixed(2)} s`, simCanvas.width - 160, 31);
+        simCtx.fillStyle = "#22c55e";
+        simCtx.fillText(`v: ${act.v.toFixed(2)} m/s`, simCanvas.width - 160, 51);
+    }
+
+    function finalizarDatosSimulacion(escena, preset) {
+        if (simDatosSerie.length < 2) return;
+
+        const primero = simDatosSerie[0];
+        const ultimo = simDatosSerie[simDatosSerie.length - 1];
+        const tiempoTotal = Math.max(0.01, ultimo.t);
+        const vIni = primero.v;
+        const vFin = ultimo.v;
+
+        let desplazamiento = ultimo.pos;
+        let accMedia = (vFin - vIni) / tiempoTotal;
+        let explicacion = "";
+        let comparacion = "";
+        let tituloReporte = "";
+        let etiquetaEscena = "";
+
+        if (escena === 'caida') {
+            etiquetaEscena = "Caída Libre desde Muro";
+            const masa = parseFloat(document.getElementById('simMasa').value) || 0.1;
+            const drag = parseFloat(document.getElementById('simDrag').value) || 0;
+            const g = parseFloat(document.getElementById('simGravedad').value) || 9.81;
+            explicacion = `Simulación de <strong>${etiquetaEscena}</strong> con <strong>${preset.nombre}</strong> (${masa} kg, k = ${drag}) desde ${desplazamiento.toFixed(2)} m con g = ${g.toFixed(2)} m/s².`;
+            comparacion = `<strong>Comparativa de Velocidades:</strong> Inició en <strong>v₀ = ${vIni.toFixed(2)} m/s</strong> y llegó al suelo con <strong>v_f = ${vFin.toFixed(2)} m/s</strong> (cambio de <strong>${(vFin - vIni) >= 0 ? '+' : ''}${(vFin - vIni).toFixed(2)} m/s</strong>).`;
+            tituloReporte = `Reporte de Simulación: Caída Libre (${preset.nombre})`;
+        } else if (escena === 'mru_mrua') {
+            const modeloSim = Math.abs(accMedia) < 0.05 ? "MRU (Velocidad Constante)" : "MRUA (Aceleración Constante)";
+            etiquetaEscena = `Pista Horizontal • ${modeloSim}`;
+            explicacion = `Simulación en <strong>Pista Horizontal</strong> con <strong>${preset.nombre}</strong> clasificada como <strong>${modeloSim}</strong>.`;
+            comparacion = `<strong>Comparativa de Velocidades:</strong> Inició en <strong>v₀ = ${vIni.toFixed(2)} m/s</strong> y terminó en <strong>v_f = ${vFin.toFixed(2)} m/s</strong> (variación de <strong>${(vFin - vIni) >= 0 ? '+' : ''}${(vFin - vIni).toFixed(2)} m/s</strong> en ${tiempoTotal.toFixed(2)} s).`;
+            tituloReporte = `Reporte de Simulación: ${modeloSim}`;
+        } else if (escena === 'rampa') {
+            const geom = obtenerGeometriaRampa();
+            const mu = parseFloat(document.getElementById('simRampaFriccion').value) || 0;
+            etiquetaEscena = `Plano Inclinado (θ = ${geom.anguloDeg}°)`;
+            accMedia = ultimo.a;
+            explicacion = `Simulación en <strong>${etiquetaEscena}</strong> con <strong>${preset.nombre}</strong> y coeficiente de fricción μ = ${mu.toFixed(2)}. La aceleración efectiva a lo largo de la rampa fue de <strong>${accMedia.toFixed(2)} m/s²</strong>.`;
+            comparacion = `<strong>Comparativa de Velocidades:</strong> Partió desde <strong>v₀ = ${vIni.toFixed(2)} m/s</strong> y alcanzó <strong>v_f = ${vFin.toFixed(2)} m/s</strong> al final de la rampa de ${desplazamiento.toFixed(2)} m.`;
+            tituloReporte = `Reporte de Simulación: Rampa ${geom.anguloDeg}° (${preset.nombre})`;
+        } else if (escena === 'tiro_vertical') {
+            const maxAlt = Math.max(...simDatosSerie.map(d => d.pos));
+            desplazamiento = maxAlt;
+            etiquetaEscena = "Tiro Vertical (Subida y Bajada)";
+            explicacion = `Simulación de <strong>${etiquetaEscena}</strong> con <strong>${preset.nombre}</strong>. Alcanzó una altura máxima de <strong>${maxAlt.toFixed(2)} m</strong> en ${tiempoTotal.toFixed(2)} s de vuelo total.`;
+            comparacion = `<strong>Comparativa de Velocidades:</strong> Salió hacia arriba con <strong>v₀ = +${vIni.toFixed(2)} m/s</strong>, frenó hasta 0 m/s en el punto más alto y regresó al suelo con <strong>v_f = ${vFin.toFixed(2)} m/s</strong>.`;
+            tituloReporte = `Reporte de Simulación: Tiro Vertical (${preset.nombre})`;
+        }
+
+        document.getElementById('sDist').innerText = `${desplazamiento.toFixed(2)} m`;
+        document.getElementById('sTiempo').innerText = `${tiempoTotal.toFixed(2)} s`;
+        document.getElementById('sVelIni').innerText = `${vIni.toFixed(2)} m/s`;
+        document.getElementById('sVelFin').innerText = `${vFin.toFixed(2)} m/s`;
+        document.getElementById('sAcc').innerText = `${accMedia.toFixed(2)} m/s²`;
+
+        document.getElementById('simExplicacion').innerHTML = explicacion;
+        document.getElementById('simComparacion').innerHTML = comparacion;
+        simPhysicsCard.style.display = "block";
+
+        ultimoDiagnosticoContexto = {
+            tipo: 'simulacion',
+            escena: etiquetaEscena,
+            objeto: preset.nombre,
+            distancia: desplazamiento,
+            tiempo: tiempoTotal,
+            vIni,
+            vFin
+        };
+
+        simTableBody.innerHTML = "";
+        simResumenExcel = [
+            { "Parámetro": "Escenario", "Valor": etiquetaEscena },
+            { "Parámetro": "Objeto Predeterminado", "Valor": preset.nombre },
+            { "Parámetro": "Desplazamiento / Altura Máx (m)", "Valor": parseFloat(desplazamiento.toFixed(3)) },
+            { "Parámetro": "Tiempo Total (s)", "Valor": parseFloat(tiempoTotal.toFixed(3)) },
+            { "Parámetro": "Velocidad Inicial v0 (m/s)", "Valor": parseFloat(vIni.toFixed(3)) },
+            { "Parámetro": "Velocidad Final vf (m/s)", "Valor": parseFloat(vFin.toFixed(3)) },
+            { "Parámetro": "Aceleración Media (m/s²)", "Valor": parseFloat(accMedia.toFixed(3)) }
+        ];
+
+        simDatosSerie.forEach(d => {
+            simTableBody.innerHTML += `<tr>
+                <td>${d.t.toFixed(3)}</td>
+                <td>${d.pos.toFixed(3)}</td>
+                <td style="color:#22c55e; font-weight:bold;">${d.v.toFixed(3)}</td>
+                <td style="color:#a855f7; font-weight:bold;">${d.a.toFixed(3)}</td>
+            </tr>`;
+        });
+
+        simResultsSection.style.display = "block";
+        simDownloadBtn.style.display = "block";
+
+        if (chartSimP) chartSimP.destroy();
+        if (chartSimV) chartSimV.destroy();
+        if (chartSimA) chartSimA.destroy();
+
+        const labelsSim = simDatosSerie.map(d => d.t.toFixed(2));
+        chartSimP = new Chart(document.getElementById('chartSimPosicion'), {
+            type: 'line',
+            data: {
+                labels: labelsSim,
+                datasets: [{
+                    label: escena === 'caida' ? 'Altura Descendida (m)' : (escena === 'tiro_vertical' ? 'Altura Vertical (m)' : 'Desplazamiento (m)'),
+                    data: simDatosSerie.map(d => d.pos),
+                    borderColor: '#38bdf8',
+                    backgroundColor: 'rgba(56, 189, 248, 0.15)',
+                    tension: 0.25,
+                    fill: true
+                }]
+            }
+        });
+
+        chartSimV = new Chart(document.getElementById('chartSimVelocidad'), {
+            type: 'line',
+            data: {
+                labels: labelsSim,
+                datasets: [{
+                    label: 'Velocidad (m/s)',
+                    data: simDatosSerie.map(d => d.v),
+                    borderColor: '#22c55e',
+                    backgroundColor: 'rgba(34, 197, 94, 0.15)',
+                    tension: 0.25,
+                    fill: true
+                }]
+            }
+        });
+
+        chartSimA = new Chart(document.getElementById('chartSimAceleracion'), {
+            type: 'line',
+            data: {
+                labels: labelsSim,
+                datasets: [{
+                    label: 'Aceleración (m/s²)',
+                    data: simDatosSerie.map(d => d.a),
+                    borderColor: '#a855f7',
+                    backgroundColor: 'rgba(168, 85, 247, 0.15)',
+                    tension: 0.2,
+                    fill: true
+                }]
+            }
+        });
+
+        const fechaReporte = obtenerFechaHoraActual();
+        document.getElementById('repSimTitulo').innerText = tituloReporte;
+        document.getElementById('repSimFecha').innerText = `HOLOBODY • ${fechaReporte} • ${etiquetaEscena}`;
+        document.getElementById('repSimGrid').innerHTML = `
+            <div class="report-item"><div class="r-label">Escenario</div><div class="r-val" style="font-size:14px;">${etiquetaEscena}</div></div>
+            <div class="report-item"><div class="r-label">Objeto</div><div class="r-val">${preset.nombre}</div></div>
+            <div class="report-item"><div class="r-label">Desplazamiento / Alt.</div><div class="r-val">${desplazamiento.toFixed(2)} m</div></div>
+            <div class="report-item"><div class="r-label">Tiempo Total</div><div class="r-val">${tiempoTotal.toFixed(2)} s</div></div>
+            <div class="report-item"><div class="r-label">Velocidad Inicial (v₀)</div><div class="r-val">${vIni.toFixed(2)} m/s</div></div>
+            <div class="report-item"><div class="r-label">Velocidad Final (v_f)</div><div class="r-val">${vFin.toFixed(2)} m/s</div></div>
+        `;
+        const conclusionSim = `En ${etiquetaEscena} con ${preset.nombre}, el recorrido fue de ${desplazamiento.toFixed(2)} m en ${tiempoTotal.toFixed(2)} s, pasando de v₀ = ${vIni.toFixed(2)} m/s a v_f = ${vFin.toFixed(2)} m/s.`;
+        document.getElementById('repSimConclusion').innerText = conclusionSim;
+        simReportCard.style.display = "block";
+
+        reporteTextoSim =
+`REPORTE DE SIMULACIÓN - HOLOBODY
+${tituloReporte}
+Escenario: ${etiquetaEscena}
+Fecha: ${fechaReporte}
+----------------------------------------
+• Objeto: ${preset.nombre}
+• Desplazamiento / Altura: ${desplazamiento.toFixed(2)} m
+• Tiempo total: ${tiempoTotal.toFixed(2)} s
+• Velocidad inicial (v0): ${vIni.toFixed(2)} m/s
+• Velocidad final (vf): ${vFin.toFixed(2)} m/s
+• Aceleración media: ${accMedia.toFixed(2)} m/s²
+----------------------------------------
+Conclusión: ${conclusionSim}`;
+    }
+
+    function exportarSimulacionExcel() {
+        if (simDatosSerie.length === 0) return;
+        const rows = simDatosSerie.map(d => ({
+            "Tiempo (s)": parseFloat(d.t.toFixed(3)),
+            "Posición / Altura (m)": parseFloat(d.pos.toFixed(3)),
+            "Velocidad (m/s)": parseFloat(d.v.toFixed(3)),
+            "Aceleración (m/s²)": parseFloat(d.a.toFixed(3))
+        }));
+        const workbook = XLSX.utils.book_new();
+        const wsResumen = XLSX.utils.json_to_sheet(simResumenExcel);
+        const wsDatos = XLSX.utils.json_to_sheet(rows);
+        XLSX.utils.book_append_sheet(workbook, wsResumen, "Resumen_Simulacion");
+        XLSX.utils.book_append_sheet(workbook, wsDatos, "Datos_Simulados");
+        XLSX.writeFile(workbook, "Simulacion_HOLOBODY.xlsx");
+    }
+
+    dibujarEscenaInicialSim();
+
+    // --- LÓGICA DE VISIÓN ARTIFICIAL: CAÍDA LIBRE ---
+    const caidaVideoInput = document.getElementById('caidaVideoInput');
+    const caidaVideoPlayer = document.getElementById('caidaVideoPlayer');
+    const caidaProcessedVideoPlayer = document.getElementById('caidaProcessedVideoPlayer');
+    const caidaCanvasOutput = document.getElementById('caidaCanvasOutput');
+    const caidaCtx = caidaCanvasOutput.getContext('2d');
+    const caidaProcessBtn = document.getElementById('caidaProcessBtn');
+    const caidaDownloadBtn = document.getElementById('caidaDownloadBtn');
+    const statusCaidaText = document.getElementById('statusCaidaText');
+    const caidaCard = document.getElementById('caidaCard');
+    const caidaReportCard = document.getElementById('caidaReportCard');
+    const caidaResultsSection = document.getElementById('caidaResultsSection');
+    const caidaTableBody = document.getElementById('caidaTableBody');
+
+    let caidaClickPuntos = [];
+    let datosGlobalesExcelCaida = [];
+    let resumenExcelCaida = [];
+    let chartCaidaV, chartCaidaA, chartCaidaH;
+
+    caidaVideoInput.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        caidaVideoPlayer.src = URL.createObjectURL(file);
+        caidaVideoPlayer.load();
+
+        caidaVideoPlayer.onloadeddata = function() {
+            caidaCanvasOutput.width = 480;
+            caidaCanvasOutput.height = (caidaVideoPlayer.videoHeight / caidaVideoPlayer.videoWidth) * 480;
+            document.getElementById('caidaEndTime').value = caidaVideoPlayer.duration.toFixed(1);
+            statusCaidaText.innerText = "📐 Haz clic en dos puntos del video para marcar una distancia de referencia conocida en metros.";
+            statusCaidaText.style.background = "#0284c7";
+
+            caidaCanvasOutput.style.display = "block";
+            caidaProcessedVideoPlayer.style.display = "none";
+            caidaCard.style.display = "none";
+            caidaReportCard.style.display = "none";
+            caidaResultsSection.style.display = "none";
+            caidaDownloadBtn.style.display = "none";
+            caidaClickPuntos = [];
+            caidaVideoPlayer.currentTime = parseFloat(document.getElementById('caidaStartTime').value);
+        };
+    });
+
+    caidaVideoPlayer.addEventListener('seeked', () => { redibujarCaidaCanvasBase(); });
+
+    function redibujarCaidaCanvasBase() {
+        if (caidaVideoPlayer.src === "") return;
+        caidaCtx.drawImage(caidaVideoPlayer, 0, 0, caidaCanvasOutput.width, caidaCanvasOutput.height);
+        caidaClickPuntos.forEach(p => {
+            caidaCtx.beginPath(); caidaCtx.arc(p.x, p.y, 5, 0, 2 * Math.PI); caidaCtx.fillStyle = "#ef4444"; caidaCtx.fill();
+        });
+        if (caidaClickPuntos.length === 2) {
+            caidaCtx.beginPath(); caidaCtx.moveTo(caidaClickPuntos[0].x, caidaClickPuntos[0].y); caidaCtx.lineTo(caidaClickPuntos[1].x, caidaClickPuntos[1].y);
+            caidaCtx.strokeStyle = "#ef4444"; caidaCtx.lineWidth = 2; caidaCtx.stroke();
+        }
+    }
+
+    caidaCanvasOutput.addEventListener('click', (e) => {
+        if (caidaVideoPlayer.src === "") return;
+        const rect = caidaCanvasOutput.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+
+        if (caidaClickPuntos.length >= 2) caidaClickPuntos = [];
+        caidaClickPuntos.push({ x, y });
+        redibujarCaidaCanvasBase();
+
+        if (caidaClickPuntos.length === 2) {
+            let dx = caidaClickPuntos[1].x - caidaClickPuntos[0].x;
+            let dy = caidaClickPuntos[1].y - caidaClickPuntos[0].y;
+            let distPx = Math.sqrt(dx * dx + dy * dy);
+            document.getElementById('caidaPixelScale').value = Math.round(distPx);
+            statusCaidaText.innerText = `Calibración Caída Libre: ${Math.round(distPx)} px equivalen a los metros fijados.`;
+            statusCaidaText.style.background = "#10b981";
+        }
+    });
+
+    caidaProcessBtn.addEventListener('click', async () => {
+        const start = parseFloat(document.getElementById('caidaStartTime').value);
+        const end = parseFloat(document.getElementById('caidaEndTime').value);
+        const pxRef = parseFloat(document.getElementById('caidaPixelScale').value);
+        const mRef = parseFloat(document.getElementById('caidaMetersScale').value);
+        const m_por_pixel = mRef / pxRef;
+        const filterType = document.getElementById('caidaFilter').value;
+        const masa = parseFloat(document.getElementById('caidaMasa').value);
+        const dragK = parseFloat(document.getElementById('caidaAirDrag').value);
+
+        statusCaidaText.innerText = "⏳ Extrayendo datos de caída vertical en vivo...";
+        statusCaidaText.style.background = "#f59e0b";
+        caidaCard.style.display = "none";
+        caidaReportCard.style.display = "none";
+        caidaResultsSection.style.display = "none";
+        caidaDownloadBtn.style.display = "none";
+
+        caidaVideoPlayer.currentTime = start;
+        let posicionesY = [];
+        let fps = 30;
+        let interval = 1000 / fps;
+
+        caidaVideoPlayer.play();
+
+        let trackCaida = setInterval(() => {
+            if (caidaVideoPlayer.currentTime >= end || caidaVideoPlayer.paused || caidaVideoPlayer.ended) {
+                clearInterval(trackCaida);
+                caidaVideoPlayer.pause();
+
+                statusCaidaText.innerText = "🍎 ¡Análisis de Caída Libre Completado!";
+                statusCaidaText.style.background = "#10b981";
+
+                procesarCaidaLibreFisica(posicionesY, m_por_pixel, masa, dragK);
+                return;
+            }
+
+            caidaCtx.drawImage(caidaVideoPlayer, 0, 0, caidaCanvasOutput.width, caidaCanvasOutput.height);
+            let src = cv.imread(caidaCanvasOutput);
+            let mask = new cv.Mat();
+
+            if (filterType === 'dark' || filterType === 'bright') {
+                let gray = new cv.Mat();
+                cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
+                let blurred = new cv.Mat();
+                cv.GaussianBlur(gray, blurred, new cv.Size(9, 9), 0);
+                if (filterType === 'dark') {
+                    cv.threshold(blurred, mask, 100, 255, cv.THRESH_BINARY_INV);
+                } else {
+                    cv.threshold(blurred, mask, 160, 255, cv.THRESH_BINARY);
+                }
+                gray.delete();
+                blurred.delete();
+            } else {
+                let hsv = new cv.Mat();
+                cv.cvtColor(src, hsv, cv.COLOR_RGBA2RGB);
+                cv.cvtColor(hsv, hsv, cv.COLOR_RGB2HSV);
+                let low, high;
+                if (filterType === 'verde') {
+                    low = new cv.Mat(hsv.rows(), hsv.cols(), hsv.type(), [35, 40, 40, 0]);
+                    high = new cv.Mat(hsv.rows(), hsv.cols(), hsv.type(), [90, 255, 255, 0]);
+                } else if (filterType === 'rojo') {
+                    low = new cv.Mat(hsv.rows(), hsv.cols(), hsv.type(), [0, 80, 80, 0]);
+                    high = new cv.Mat(hsv.rows(), hsv.cols(), hsv.type(), [10, 255, 255, 0]);
+                } else {
+                    low = new cv.Mat(hsv.rows(), hsv.cols(), hsv.type(), [100, 80, 80, 0]);
+                    high = new cv.Mat(hsv.rows(), hsv.cols(), hsv.type(), [140, 255, 255, 0]);
+                }
+                cv.inRange(hsv, low, high, mask);
+                hsv.delete();
+                low.delete();
+                high.delete();
+            }
+
+            let kernel = cv.Mat.ones(3, 3, cv.CV_8U);
+            cv.morphologyEx(mask, mask, cv.MORPH_OPEN, kernel);
+            cv.morphologyEx(mask, mask, cv.MORPH_CLOSE, kernel);
+
+            let contours = new cv.MatVector();
+            let hierarchy = new cv.Mat();
+            cv.findContours(mask, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+
+            let mejorContorno = null;
+            let maxArea = 0;
+
+            for (let i = 0; i < contours.size(); ++i) {
+                let cnt = contours.get(i);
+                let area = cv.contourArea(cnt);
+                if (area > 12 && area < 8000) {
+                    let circle = cv.minEnclosingCircle(cnt);
+                    if (posicionesY.length > 0 && circle.center.y < posicionesY[posicionesY.length - 1].y - 18) {
+                        continue;
+                    }
+                    if (area > maxArea) {
+                        maxArea = area;
+                        mejorContorno = cnt;
+                    }
+                }
+            }
+
+            if (mejorContorno) {
+                let circle = cv.minEnclosingCircle(mejorContorno);
+                posicionesY.push({ t: caidaVideoPlayer.currentTime, y: circle.center.y, x: circle.center.x });
+            }
+
+            if (posicionesY.length > 1) {
+                caidaCtx.beginPath();
+                caidaCtx.moveTo(posicionesY[0].x, posicionesY[0].y);
+                for (let j = 1; j < posicionesY.length; j++) {
+                    caidaCtx.lineTo(posicionesY[j].x, posicionesY[j].y);
+                }
+                caidaCtx.strokeStyle = "#38bdf8";
+                caidaCtx.lineWidth = 3;
+                caidaCtx.stroke();
+            }
+
+            if (posicionesY.length > 0) {
+                let act = posicionesY[posicionesY.length - 1];
+                caidaCtx.beginPath();
+                caidaCtx.arc(act.x, act.y, 8, 0, 2 * Math.PI);
+                caidaCtx.strokeStyle = "#ef4444";
+                caidaCtx.lineWidth = 4;
+                caidaCtx.stroke();
+            }
+
+            src.delete(); mask.delete(); kernel.delete(); contours.delete(); hierarchy.delete();
+        }, interval);
+    });
+
+    function procesarCaidaLibreFisica(pos, escala_m, masa, k) {
+        if (pos.length < 3) {
+            alert("Rastreo insuficiente en el video de caída. Ajusta el recorte de tiempo o el filtro de color.");
+            return;
+        }
+
+        let tiempos = [];
+        let posY_m = [];
+        let alturaDescendida = [];
+        let velocidades = [0];
+        let aceleraciones = [0, 0];
+
+        const t0 = pos[0].t;
+        const y0 = pos[0].y * escala_m;
+
+        pos.forEach(p => {
+            const tRel = p.t - t0;
+            const yAct = p.y * escala_m;
+            tiempos.push(tRel);
+            posY_m.push(yAct);
+            alturaDescendida.push(Math.max(0, yAct - y0));
+        });
+
+        for (let i = 1; i < pos.length; i++) {
+            let dt = tiempos[i] - tiempos[i - 1];
+            if (dt <= 0) dt = 0.033;
+            let vy = Math.abs(posY_m[i] - posY_m[i - 1]) / dt;
+            velocidades.push(vy);
+        }
+
+        velocidades[0] = velocidades[1] || 0;
+
+        for (let i = 2; i < velocidades.length; i++) {
+            let dt = tiempos[i] - tiempos[i - 1];
+            if (dt <= 0) dt = 0.033;
+            let ay = (velocidades[i] - velocidades[i - 1]) / dt;
+            aceleraciones.push(ay);
+        }
+        aceleraciones[0] = aceleraciones[2] || 0;
+        aceleraciones[1] = aceleraciones[2] || 0;
+
+        let total_t = tiempos[tiempos.length - 1];
+        if (total_t <= 0) total_t = 0.033;
+
+        let delta_h = alturaDescendida[alturaDescendida.length - 1];
+        let v_inicial = velocidades[0];
+        let v_final = velocidades[velocidades.length - 1];
+
+        let g_exp = (2 * Math.max(0, delta_h - v_inicial * total_t)) / (total_t * total_t);
+        if (g_exp <= 0.1) {
+            g_exp = (2 * delta_h) / (total_t * total_t);
+        }
+
+        const deltaV = v_final - v_inicial;
+        const factorAumento = v_inicial > 0.05
+            ? `${((deltaV / v_inicial) * 100).toFixed(1)}% más rápida que al inicio`
+            : `partió prácticamente desde el reposo (v₀ ≈ 0 m/s)`;
+
+        let comparacionTexto = `<strong>Comparativa de Velocidades:</strong> El objeto inició el tramo analizado con una velocidad inicial <strong>v₀ = ${v_inicial.toFixed(2)} m/s</strong> y alcanzó una velocidad final <strong>v_f = ${v_final.toFixed(2)} m/s</strong> `;
+        if (deltaV >= 0) {
+            comparacionTexto += `(un incremento neto de <strong>+${deltaV.toFixed(2)} m/s</strong>, ${factorAumento}), confirmando que la aceleración gravitacional incrementa continuamente su rapidez durante la caída.`;
+        } else {
+            comparacionTexto += `(variación de <strong>${deltaV.toFixed(2)} m/s</strong>; verifica el recorte de tiempo si el objeto ya había rebotado o frenado al final del clip).`;
+        }
+
+        let explicacion = `El objeto recorrió una altura vertical de <strong>${delta_h.toFixed(2)} m</strong> en <strong>${total_t.toFixed(2)} s</strong>. ` +
+            `El cálculo por visión artificial determinó una aceleración gravitacional experimental de <strong>g = ${g_exp.toFixed(2)} m/s²</strong>. `;
+
+        if (k > 0) {
+            explicacion += `Se configuró una resistencia del aire k = ${k} para un objeto de masa ${masa} kg, considerando la oposición aerodinámica durante el descenso.`;
+        } else {
+            explicacion += `Comparado con la constante teórica terrestre (9.81 m/s²), la diferencia relativa es del <strong>${Math.abs(((g_exp - 9.81) / 9.81) * 100).toFixed(1)}%</strong>.`;
+        }
+
+        document.getElementById('cDist').innerText = `${delta_h.toFixed(2)} m`;
+        document.getElementById('cTiempo').innerText = `${total_t.toFixed(2)} s`;
+        document.getElementById('cVelInicial').innerText = `${v_inicial.toFixed(2)} m/s`;
+        document.getElementById('cVelocidad').innerText = `${v_final.toFixed(2)} m/s`;
+        document.getElementById('cGravedad').innerText = `${g_exp.toFixed(2)} m/s²`;
+        document.getElementById('caidaExplicacion').innerHTML = explicacion;
+        document.getElementById('caidaComparacionVel').innerHTML = comparacionTexto;
+
+        caidaCard.style.display = "block";
+
+        ultimoDiagnosticoContexto = {
+            tipo: 'caida_video',
+            altura: delta_h,
+            tiempo: total_t,
+            vIni: v_inicial,
+            vFin: v_final,
+            gExp: g_exp,
+            dragK: k
+        };
+
+        caidaTableBody.innerHTML = "";
+        datosGlobalesExcelCaida = [];
+
+        for (let i = 0; i < pos.length; i++) {
+            const t_val = tiempos[i].toFixed(3);
+            const h_val = alturaDescendida[i].toFixed(3);
+            const y_val = posY_m[i].toFixed(3);
+            const v_val = velocidades[i].toFixed(3);
+            const a_val = aceleraciones[i].toFixed(3);
+
+            caidaTableBody.innerHTML += `<tr>
+                <td>${t_val}</td>
+                <td>${h_val}</td>
+                <td>${y_val}</td>
+                <td style="color:#22c55e; font-weight:bold;">${v_val}</td>
+                <td style="color:#a855f7; font-weight:bold;">${a_val}</td>
+            </tr>`;
+
+            datosGlobalesExcelCaida.push({
+                "Tiempo (s)": parseFloat(t_val),
+                "Altura Descendida (m)": parseFloat(h_val),
+                "Posición Y (m)": parseFloat(y_val),
+                "Velocidad (m/s)": parseFloat(v_val),
+                "Aceleración (m/s²)": parseFloat(a_val)
+            });
+        }
+
+        const errorRelativo = Math.abs(((g_exp - 9.81) / 9.81) * 100).toFixed(1);
+        resumenExcelCaida = [
+            { "Parámetro": "Experimento", "Valor": "Caída Libre y Gravedad" },
+            { "Parámetro": "Altura Recorrida (m)", "Valor": parseFloat(delta_h.toFixed(3)) },
+            { "Parámetro": "Tiempo Total (s)", "Valor": parseFloat(total_t.toFixed(3)) },
+            { "Parámetro": "Velocidad Inicial v0 (m/s)", "Valor": parseFloat(v_inicial.toFixed(3)) },
+            { "Parámetro": "Velocidad Final vf (m/s)", "Valor": parseFloat(v_final.toFixed(3)) },
+            { "Parámetro": "Incremento de Velocidad Δv (m/s)", "Valor": parseFloat(deltaV.toFixed(3)) },
+            { "Parámetro": "Gravedad Experimental g (m/s²)", "Valor": parseFloat(g_exp.toFixed(3)) },
+            { "Parámetro": "Error Relativo vs 9.81 m/s² (%)", "Valor": parseFloat(errorRelativo) },
+            { "Parámetro": "Masa Configurada (kg)", "Valor": masa },
+            { "Parámetro": "Coeficiente Resistencia Aire (k)", "Valor": k }
+        ];
+
+        caidaResultsSection.style.display = "block";
+        caidaDownloadBtn.style.display = "block";
+
+        if (chartCaidaV) chartCaidaV.destroy();
+        if (chartCaidaA) chartCaidaA.destroy();
+        if (chartCaidaH) chartCaidaH.destroy();
+
+        const labelsCaida = tiempos.map(t => t.toFixed(2));
+
+        chartCaidaV = new Chart(document.getElementById('chartCaidaVelocidad'), {
+            type: 'line',
+            data: {
+                labels: labelsCaida,
+                datasets: [{
+                    label: 'Velocidad de Caída (m/s)',
+                    data: velocidades,
+                    borderColor: '#22c55e',
+                    backgroundColor: 'rgba(34, 197, 94, 0.15)',
+                    tension: 0.25,
+                    fill: true
+                }]
+            }
+        });
+
+        chartCaidaA = new Chart(document.getElementById('chartCaidaAceleracion'), {
+            type: 'line',
+            data: {
+                labels: labelsCaida,
+                datasets: [{
+                    label: 'Aceleración Vertical (m/s²)',
+                    data: aceleraciones,
+                    borderColor: '#a855f7',
+                    backgroundColor: 'rgba(168, 85, 247, 0.15)',
+                    tension: 0.2,
+                    fill: true
+                }]
+            }
+        });
+
+        chartCaidaH = new Chart(document.getElementById('chartCaidaAltura'), {
+            type: 'line',
+            data: {
+                labels: labelsCaida,
+                datasets: [{
+                    label: 'Altura Descendida (m)',
+                    data: alturaDescendida,
+                    borderColor: '#38bdf8',
+                    backgroundColor: 'rgba(56, 189, 248, 0.15)',
+                    tension: 0.25,
+                    fill: true
+                }]
+            }
+        });
+
+        const fechaReporte = obtenerFechaHoraActual();
+        document.getElementById('repCaidaFecha').innerText = `HOLOBODY • ${fechaReporte} • ${pos.length} fotogramas analizados`;
+        document.getElementById('repCaidaGrid').innerHTML = `
+            <div class="report-item"><div class="r-label">Altura Recorrida</div><div class="r-val">${delta_h.toFixed(2)} m</div></div>
+            <div class="report-item"><div class="r-label">Tiempo de Caída</div><div class="r-val">${total_t.toFixed(2)} s</div></div>
+            <div class="report-item"><div class="r-label">Velocidad Inicial (v₀)</div><div class="r-val">${v_inicial.toFixed(2)} m/s</div></div>
+            <div class="report-item"><div class="r-label">Velocidad Final (v_f)</div><div class="r-val">${v_final.toFixed(2)} m/s</div></div>
+            <div class="report-item"><div class="r-label">Gravedad Exp. (g)</div><div class="r-val">${g_exp.toFixed(2)} m/s²</div></div>
+            <div class="report-item"><div class="r-label">Masa / Resistencia Aire</div><div class="r-val">${masa} kg / k=${k}</div></div>
+        `;
+        const conclusionCaida = `Comparativa: pasó de v₀ = ${v_inicial.toFixed(2)} m/s a v_f = ${v_final.toFixed(2)} m/s (Δv = ${deltaV >= 0 ? '+' : ''}${deltaV.toFixed(2)} m/s) en ${total_t.toFixed(2)} s, obteniendo g = ${g_exp.toFixed(2)} m/s² (diferencia de ${errorRelativo}% frente a 9.81 m/s²).`;
+        document.getElementById('repCaidaConclusion').innerText = conclusionCaida;
+        caidaReportCard.style.display = "block";
+
+        reporteTextoCaida =
+`REPORTE EXPERIMENTAL - HOLOBODY
+Experimento: Caída Libre y Gravedad
+Fecha: ${fechaReporte}
+----------------------------------------
+• Altura recorrida: ${delta_h.toFixed(2)} m
+• Tiempo medido: ${total_t.toFixed(2)} s
+• Velocidad inicial (v0): ${v_inicial.toFixed(2)} m/s
+• Velocidad final (vf): ${v_final.toFixed(2)} m/s
+• Cambio de velocidad (Δv): ${deltaV >= 0 ? '+' : ''}${deltaV.toFixed(2)} m/s
+• Gravedad experimental (g): ${g_exp.toFixed(2)} m/s² (Error vs 9.81 m/s²: ${errorRelativo}%)
+• Masa / Resistencia aire: ${masa} kg / k = ${k}
+----------------------------------------
+Conclusión: ${conclusionCaida}`;
+    }
+
+    caidaDownloadBtn.addEventListener('click', () => {
+        if (datosGlobalesExcelCaida.length === 0) return;
+        const workbook = XLSX.utils.book_new();
+        const wsDatos = XLSX.utils.json_to_sheet(datosGlobalesExcelCaida);
+        const wsResumen = XLSX.utils.json_to_sheet(resumenExcelCaida);
+        XLSX.utils.book_append_sheet(workbook, wsResumen, "Resumen_Caida_Libre");
+        XLSX.utils.book_append_sheet(workbook, wsDatos, "Datos_Experimentales");
+        XLSX.writeFile(workbook, "Caida_Libre_HOLOBODY.xlsx");
+    });
+
+    // --- LÓGICA MÓDULO ORIGINAL MRU/MRUA (OPENCV) ---
+    const videoInput = document.getElementById('videoInput');
+    const videoPlayer = document.getElementById('videoPlayer');
+    const processedVideoPlayer = document.getElementById('processedVideoPlayer');
+    const canvasOutput = document.getElementById('canvasOutput');
+    const ctx = canvasOutput.getContext('2d');
+    const processBtn = document.getElementById('processBtn');
+    const downloadBtn = document.getElementById('downloadBtn');
+    const statusText = document.getElementById('statusText');
+    const resultsSection = document.getElementById('resultsSection');
+    const physicsCard = document.getElementById('physicsCard');
+    const mruReportCard = document.getElementById('mruReportCard');
+    const tableBody = document.getElementById('tableBody');
+    const pixelScaleInput = document.getElementById('pixelScale');
+
+    let datosGlobalesExcel = [];
+    let chartT, chartV, chartA;
+    let mediaRecorder, recordedChunks = [];
+    let clickPuntos = [];
+
+    cv['onRuntimeInitialized'] = () => {
+        statusText.innerText = "✅ Sistema Listo. Sube tu video e interactúa con la pantalla.";
+        statusText.style.background = "#10b981";
+    };
+
+    videoInput.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        videoPlayer.src = URL.createObjectURL(file);
+        videoPlayer.load();
+
+        videoPlayer.onloadeddata = function() {
+            canvasOutput.width = 480;
+            canvasOutput.height = (videoPlayer.videoHeight / videoPlayer.videoWidth) * 480;
+            document.getElementById('endTime').value = videoPlayer.duration.toFixed(1);
+            statusText.innerText = "📐 Opcional: Haz clic en dos extremos de un cuadro de tu cuadrícula sobre el video para calibrar los píxeles.";
+            statusText.style.background = "#0284c7";
+
+            canvasOutput.style.display = "block";
+            processedVideoPlayer.style.display = "none";
+            resultsSection.style.display = "none";
+            physicsCard.style.display = "none";
+            mruReportCard.style.display = "none";
+            clickPuntos = [];
+            videoPlayer.currentTime = parseFloat(document.getElementById('startTime').value);
+        };
+    });
+
+    videoPlayer.addEventListener('seeked', () => { redibujarCanvasBase(); });
+
+    function redibujarCanvasBase() {
+        if (videoPlayer.src === "") return;
+        ctx.drawImage(videoPlayer, 0, 0, canvasOutput.width, canvasOutput.height);
+        clickPuntos.forEach(p => {
+            ctx.beginPath(); ctx.arc(p.x, p.y, 5, 0, 2 * Math.PI); ctx.fillStyle = "#ef4444"; ctx.fill();
+        });
+        if (clickPuntos.length === 2) {
+            ctx.beginPath(); ctx.moveTo(clickPuntos[0].x, clickPuntos[0].y); ctx.lineTo(clickPuntos[1].x, clickPuntos[1].y);
+            ctx.strokeStyle = "#ef4444"; ctx.lineWidth = 2; ctx.stroke();
+        }
+    }
+
+    canvasOutput.addEventListener('click', (e) => {
+        if (videoPlayer.src === "") return;
+        const rect = canvasOutput.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+
+        if (clickPuntos.length >= 2) clickPuntos = [];
+        clickPuntos.push({ x, y });
+        redibujarCanvasBase();
+
+        if (clickPuntos.length === 2) {
+            let dx = clickPuntos[1].x - clickPuntos[0].x;
+            let dy = clickPuntos[1].y - clickPuntos[0].y;
+            let distanciaPixeles = Math.sqrt(dx * dx + dy * dy);
+            pixelScaleInput.value = Math.round(distanciaPixeles);
+            statusText.innerText = `Calibración fijada: ${Math.round(distanciaPixeles)} px equivalen a los cm reales declarados.`;
+            statusText.style.background = "#10b981";
+        }
+    });
+
+    processBtn.addEventListener('click', async () => {
+        const start = parseFloat(document.getElementById('startTime').value);
+        const end = parseFloat(document.getElementById('endTime').value);
+        const pixelesCuadro = parseFloat(pixelScaleInput.value);
+        const cmReales = parseFloat(document.getElementById('cmScale').value);
+        const cm_por_pixel = cmReales / pixelesCuadro;
+        const filterType = document.getElementById('colorFilter').value;
+        const movementType = document.getElementById('movementType').value;
+
+        statusText.innerText = "⏳ Extrayendo datos y mapeando trayectoria en vivo...";
+        statusText.style.background = "#f59e0b";
+        downloadBtn.style.display = "none";
+        resultsSection.style.display = "none";
+        physicsCard.style.display = "none";
+        mruReportCard.style.display = "none";
+
+        recordedChunks = [];
+        const stream = canvasOutput.captureStream(30);
+        mediaRecorder = new MediaRecorder(stream, { mimeType: "video/webm; codecs=vp9" });
+        mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) recordedChunks.push(e.data); };
+
+        mediaRecorder.onstop = () => {
+            const blob = new Blob(recordedChunks, { type: "video/webm" });
+            processedVideoPlayer.src = URL.createObjectURL(blob);
+            canvasOutput.style.display = "none";
+            processedVideoPlayer.style.display = "block";
+        };
+
+        videoPlayer.currentTime = start;
+        let posiciones = [];
+        let fps = 30;
+        let interval = 1000 / fps;
+
+        mediaRecorder.start();
+        videoPlayer.play();
+
+        let trackVideo = setInterval(() => {
+            if (videoPlayer.currentTime >= end || videoPlayer.paused || videoPlayer.ended) {
+                clearInterval(trackVideo);
+                videoPlayer.pause();
+                mediaRecorder.stop();
+
+                statusText.innerText = "📈 ¡Análisis Exitoso! Gráficas y modelado matemático completados.";
+                statusText.style.background = "#10b981";
+
+                if (movementType === 'rectilineo' && posiciones.length > 2) {
+                    posiciones = aplicarCalibracionRectilinea(posiciones);
+                }
+
+                procesarFisicasYGraficar(posiciones, cm_por_pixel);
+                return;
+            }
+
+            ctx.drawImage(videoPlayer, 0, 0, canvasOutput.width, canvasOutput.height);
+            let src = cv.imread(canvasOutput);
+            let gray = new cv.Mat();
+            cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
+            let blurred = new cv.Mat();
+            cv.GaussianBlur(gray, blurred, new cv.Size(9, 9), 0);
+
+            let thresh = new cv.Mat();
+            if (filterType === 'dark') {
+                cv.threshold(blurred, thresh, 100, 255, cv.THRESH_BINARY_INV);
+            } else {
+                cv.threshold(blurred, thresh, 160, 255, cv.THRESH_BINARY);
+            }
+
+            let contours = new cv.MatVector();
+            let hierarchy = new cv.Mat();
+            cv.findContours(thresh, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+
+            let mejorContorno = null;
+            let maxArea = 0;
+
+            for (let i = 0; i < contours.size(); ++i) {
+                let cnt = contours.get(i);
+                let area = cv.contourArea(cnt);
+                if (area > 15 && area < 8000) {
+                    let perimeter = cv.arcLength(cnt, true);
+                    let circularity = (4 * Math.PI * area) / (perimeter * perimeter);
+
+                    if (circularity > 0.45 && area > maxArea) {
+                        maxArea = area;
+                        mejorContorno = cnt;
+                    }
+                }
+            }
+
+            if (mejorContorno) {
+                let circle = cv.minEnclosingCircle(mejorContorno);
+                let nuevoPunto = { t: videoPlayer.currentTime, x: circle.center.x, y: circle.center.y };
+
+                if (posiciones.length === 0) {
+                    posiciones.push(nuevoPunto);
+                } else {
+                    let ultimo = posiciones[posiciones.length - 1];
+                    let distFisica = Math.sqrt(Math.pow(nuevoPunto.x - ultimo.x, 2) + Math.pow(nuevoPunto.y - ultimo.y, 2));
+                    if (distFisica < 80) {
+                        posiciones.push(nuevoPunto);
+                    }
+                }
+            }
+
+            if (posiciones.length > 1) {
+                ctx.beginPath();
+                ctx.moveTo(posiciones[0].x, posiciones[0].y);
+                for (let j = 1; j < posiciones.length; j++) {
+                    ctx.lineTo(posiciones[j].x, posiciones[j].y);
+                }
+                ctx.strokeStyle = "#38bdf8"; ctx.lineWidth = 3; ctx.stroke();
+            }
+
+            if (posiciones.length > 0) {
+                let act = posiciones[posiciones.length - 1];
+                ctx.beginPath(); ctx.arc(act.x, act.y, 8, 0, 2 * Math.PI); ctx.strokeStyle = "#22c55e"; ctx.lineWidth = 4; ctx.stroke();
+            }
+
+            src.delete(); gray.delete(); blurred.delete(); thresh.delete(); contours.delete(); hierarchy.delete();
+        }, interval);
+    });
+
+    function aplicarCalibracionRectilinea(datos) {
+        let primera = datos[0], ultima = datos[datos.length - 1];
+        let deltaX = Math.abs(ultima.x - primera.x), deltaY = Math.abs(ultima.y - primera.y);
+
+        if (deltaY > deltaX * 1.5) {
+            let xPromedio = datos.reduce((sum, p) => sum + p.x, 0) / datos.length;
+            return datos.map(p => ({ t: p.t, x: xPromedio, y: p.y }));
+        } else if (deltaX > deltaY * 1.5) {
+            let yPromedio = datos.reduce((sum, p) => sum + p.y, 0) / datos.length;
+            return datos.map(p => ({ t: p.t, x: p.x, y: yPromedio }));
+        }
+        return datos;
+    }
+
+    function procesarFisicasYGraficar(datos, escala_cm) {
+        if (datos.length < 3) {
+            alert("Rastreo insuficiente. Ajusta la iluminación.");
+            return;
+        }
+
+        let tiempo = [], x_cm = [], y_cm = [], velocidad = [0], aceleracion = [0, 0];
+        datosGlobalesExcel = []; tableBody.innerHTML = "";
+
+        datos.forEach(d => {
+            tiempo.push(d.t);
+            x_cm.push(d.x * escala_cm);
+            y_cm.push(d.y * escala_cm);
+        });
+
+        for (let i = 1; i < datos.length; i++) {
+            let dt = tiempo[i] - tiempo[i - 1]; if (dt === 0) dt = 0.033;
+            let vx = (x_cm[i] - x_cm[i - 1]) / dt;
+            let vy = (y_cm[i] - y_cm[i - 1]) / dt;
+            velocidad.push(Math.sqrt(vx * vx + vy * vy));
+        }
+
+        for (let i = 2; i < velocidad.length; i++) {
+            let dt = tiempo[i] - tiempo[i - 1]; if (dt === 0) dt = 0.033;
+            aceleracion.push(Math.abs(velocidad[i] - velocidad[i - 1]) / dt);
+        }
+
+        let vValidas = velocidad.slice(1);
+        let aValidas = aceleracion.slice(2);
+        let vPromedio = vValidas.reduce((a, b) => a + b, 0) / vValidas.length;
+        let aPromedio = aValidas.reduce((a, b) => a + b, 0) / aValidas.length;
+        let variacionV = Math.sqrt(vValidas.reduce((sum, v) => sum + Math.pow(v - vPromedio, 2), 0) / vValidas.length);
+
+        let tipoMovimiento = "Movimiento Rectilíneo Uniforme (MRU)";
+        let ecuacionTexto = `x(t) = ${x_cm[0].toFixed(1)} + ${vPromedio.toFixed(1)} · t`;
+
+        if (variacionV > vPromedio * 0.15) {
+            tipoMovimiento = "Movimiento Rectilíneo Uniformemente Acelerado (MRUA)";
+            ecuacionTexto = `x(t) = ${x_cm[0].toFixed(1)} + ${(velocidad[1] || 0).toFixed(1)}·t + 0.5·(${aPromedio.toFixed(1)})·t²`;
+        }
+
+        let distTotal = Math.sqrt(Math.pow(x_cm[x_cm.length - 1] - x_cm[0], 2) + Math.pow(y_cm[y_cm.length - 1] - y_cm[0], 2));
+        let tiempoTotalMru = Math.max(0.033, tiempo[tiempo.length - 1] - tiempo[0]);
+        let velMaxMru = Math.max(...velocidad);
+
+        document.getElementById('predictionText').innerHTML = `El sistema detectó un: <strong>${tipoMovimiento}</strong>.`;
+        document.getElementById('mDist').innerText = `${distTotal.toFixed(1)} cm`;
+        document.getElementById('mVelMax').innerText = `${velMaxMru.toFixed(1)} cm/s`;
+        document.getElementById('mAccMed').innerText = `${aPromedio.toFixed(1)} cm/s²`;
+        document.getElementById('mEcuacion').innerText = ecuacionTexto;
+
+        physicsCard.style.display = "block";
+
+        ultimoDiagnosticoContexto = {
+            tipo: 'mru_video',
+            modelo: tipoMovimiento,
+            distancia: distTotal,
+            velMax: velMaxMru,
+            accMed: aPromedio
+        };
+
+        const fechaReporte = obtenerFechaHoraActual();
+        document.getElementById('repMruTitulo').innerText = `Reporte Experimental: ${tipoMovimiento}`;
+        document.getElementById('repMruFecha').innerText = `HOLOBODY • ${fechaReporte} • ${datos.length} fotogramas analizados`;
+        document.getElementById('repMruGrid').innerHTML = `
+            <div class="report-item"><div class="r-label">Modelo Detectado</div><div class="r-val">${tipoMovimiento.includes('MRUA') ? 'MRUA' : 'MRU'}</div></div>
+            <div class="report-item"><div class="r-label">Distancia Total</div><div class="r-val">${distTotal.toFixed(1)} cm</div></div>
+            <div class="report-item"><div class="r-label">Tiempo Analizado</div><div class="r-val">${tiempoTotalMru.toFixed(2)} s</div></div>
+            <div class="report-item"><div class="r-label">Velocidad Máxima</div><div class="r-val">${velMaxMru.toFixed(1)} cm/s</div></div>
+            <div class="report-item"><div class="r-label">Aceleración Media</div><div class="r-val">${aPromedio.toFixed(1)} cm/s²</div></div>
+            <div class="report-item"><div class="r-label">Ecuación Ajustada</div><div class="r-val" style="font-size:13px; font-family:monospace; color:#38bdf8;">${ecuacionTexto}</div></div>
+        `;
+        const conclusionMru = `El cuerpo recorrió ${distTotal.toFixed(1)} cm en ${tiempoTotalMru.toFixed(2)} s con velocidad media de ${vPromedio.toFixed(1)} cm/s y aceleración media de ${aPromedio.toFixed(1)} cm/s², ajustándose a ${tipoMovimiento}.`;
+        document.getElementById('repMruConclusion').innerText = conclusionMru;
+        mruReportCard.style.display = "block";
+
+        reporteTextoMru =
+`REPORTE EXPERIMENTAL - HOLOBODY
+Modelo: ${tipoMovimiento}
+Fecha: ${fechaReporte}
+----------------------------------------
+• Distancia recorrida: ${distTotal.toFixed(1)} cm
+• Tiempo analizado: ${tiempoTotalMru.toFixed(2)} s
+• Velocidad media: ${vPromedio.toFixed(1)} cm/s
+• Velocidad máxima: ${velMaxMru.toFixed(1)} cm/s
+• Aceleración media: ${aPromedio.toFixed(1)} cm/s²
+• Ecuación de movimiento: ${ecuacionTexto}
+----------------------------------------
+Conclusión: ${conclusionMru}`;
+
+        for (let i = 0; i < datos.length; i++) {
+            let t_val = tiempo[i].toFixed(3);
+            let x_val = x_cm[i].toFixed(2);
+            let y_val = y_cm[i].toFixed(2);
+            let v_val = (velocidad[i] || 0).toFixed(2);
+            let a_val = (aceleracion[i] || 0).toFixed(2);
+
+            tableBody.innerHTML += `<tr>
+                <td>${t_val}</td><td>${x_val}</td><td>${y_val}</td>
+                <td style="color:#22c55e; font-weight:bold;">${v_val}</td>
+                <td style="color:#a855f7; font-weight:bold;">${a_val}</td>
+            </tr>`;
+
+            datosGlobalesExcel.push({
+                "Tiempo (s)": t_val, "Posición X (cm)": x_val, "Posición Y (cm)": y_val, "Velocidad (cm/s)": v_val, "Aceleración (cm/s²)": a_val
+            });
+        }
+
+        resultsSection.style.display = "block";
+        downloadBtn.style.display = "block";
+
+        if (chartT) chartT.destroy(); if (chartV) chartV.destroy(); if (chartA) chartA.destroy();
+
+        chartT = new Chart(document.getElementById('chartTrayectoria'), {
+            type: 'scatter',
+            data: { datasets: [{ label: 'Trayectoria Cinemática Estabilizada (X vs Y)', data: x_cm.map((x, i) => ({ x: x, y: y_cm[i] })), backgroundColor: '#ef4444', borderColor: '#38bdf8', showLine: true }] }
+        });
+
+        chartV = new Chart(document.getElementById('chartVelocidad'), {
+            type: 'line',
+            data: { labels: tiempo.map(t => t.toFixed(2)), datasets: [{ label: 'Velocidad Lineal (cm/s)', data: velocidad, borderColor: '#22c55e', fill: false }] }
+        });
+
+        chartA = new Chart(document.getElementById('chartAceleracion'), {
+            type: 'line',
+            data: { labels: tiempo.map(t => t.toFixed(2)), datasets: [{ label: 'Aceleración Directa (cm/s²)', data: aceleracion, borderColor: '#a855f7', fill: false }] }
+        });
+    }
+
+    downloadBtn.addEventListener('click', () => {
+        if (datosGlobalesExcel.length === 0) return;
+        const worksheet = XLSX.utils.json_to_sheet(datosGlobalesExcel);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Cinemática");
+        XLSX.writeFile(workbook, "Analisis_Movimiento_HOLOBODY.xlsx");
+    });
+</script>
+
+</body>
+</html>
